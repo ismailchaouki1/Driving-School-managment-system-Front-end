@@ -313,7 +313,7 @@ $background: #050505;
   ////reviews :
 
   .reviews {
-    background: transparent;
+    background: $background !important;
     padding: 120px 0;
     overflow: hidden;
   }
@@ -406,7 +406,6 @@ $background: #050505;
     height: 100%;
     z-index: 2;
   }
-
   .reviews-wrapper::before {
     left: 0;
     background: linear-gradient(to right, #050505, transparent);
@@ -420,7 +419,7 @@ $background: #050505;
   ///reviews 2  :
 
   .reviews2 {
-    background: #050505;
+    background: $background !important;
     padding: 120px 0;
     overflow: hidden;
     margin-top: -160px;

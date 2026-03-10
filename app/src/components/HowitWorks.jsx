@@ -36,7 +36,7 @@ export default function HowItWorks() {
           // markers: true,     // enable for debugging
         },
         defaults: {
-          duration: 1.2,
+          duration: 0.7,
           ease: 'power3.out', // smoother easing
         },
       });
