@@ -13,7 +13,6 @@ $background: #050505;
 }
 
 /* VIDEO BUTTON */
-
 .video {
   display: flex;
   align-items: center;
@@ -23,7 +22,8 @@ $background: #050505;
 .play {
   color: $main_color;
   font-size: 25px;
-  font-family: 'Lexend-Regular', sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
 
   &:hover {
     transform: scale(1.1);
@@ -32,26 +32,25 @@ $background: #050505;
 }
 
 /* TITLE */
-
 .how-title {
   font-size: 50px;
-  font-family: 'Lexend-ExtraLight', sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 200;
   margin-bottom: 20px;
 }
 
 /* STEPS CONTAINER */
-
 .steps {
   width: 100%;
   display: flex;
   gap: 25px;
   flex-wrap: wrap;
   justify-content: center;
-  font-family: 'Lexend-ExtraLight', sans-serif;
+  font-family: 'Manrope-ExtraLight', 'Manrope-Variable', sans-serif;
+  font-weight: 200;
 }
 
 /* CARD */
-
 .card {
   flex: 1 1 320px;
   max-width: 380px;
@@ -60,6 +59,8 @@ $background: #050505;
   padding: 15px;
   color: white;
   transition: 0.3s ease;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
 
   &:hover {
     transform: translateY(-6px);
@@ -95,11 +96,12 @@ $background: #050505;
 
   .card-text {
     color: #8e8e8e;
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
   }
 }
 
 /* BADGE */
-
 .card-badge {
   width: fit-content;
   height: 30px;
@@ -111,23 +113,21 @@ $background: #050505;
   background-color: black;
   border-radius: 10px;
   box-shadow: 1px 1px 3px -1px $main_color;
-  margin-top: 20px;
-  margin-bottom: 15px;
-  font-family: 'Lexend-Regular', sans-serif;
+  margin: 20px 0 15px 0;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
 }
 
 /* ========================= */
 /* 📱 MOBILE */
-/* ========================= */
-
 @media (max-width: 768px) {
   .howItWorks {
     align-items: center;
-    text-align: center;
   }
 
   .how-title {
     font-size: 32px;
+    text-align: center;
   }
 
   .steps {
@@ -150,8 +150,6 @@ $background: #050505;
 
 /* ========================= */
 /* 💻 TABLET */
-/* ========================= */
-
 @media (min-width: 769px) and (max-width: 1024px) {
   .steps {
     justify-content: center;

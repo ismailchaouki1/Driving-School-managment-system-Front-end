@@ -2,6 +2,7 @@ $main_color: #8cff2e;
 $text_color: white;
 $second_color: #111010bb;
 $background: #050505;
+
 .why {
   height: auto;
   width: 100%;
@@ -11,6 +12,7 @@ $background: #050505;
   flex-direction: column;
   gap: 10px;
 }
+
 .title-badge {
   display: flex;
   align-items: center;
@@ -18,16 +20,20 @@ $background: #050505;
   color: $main_color;
   margin-top: 15%;
   margin-bottom: 20px;
-  font-family: 'Lexend-Regular', sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
 }
+
 .title-why {
   font-size: 50px;
-  font-family: 'Lexend-ExtraLight', sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 200;
   margin-bottom: 20px;
   color: white;
   width: 70%;
   text-align: center;
 }
+
 .comparison {
   height: 350px;
   width: auto !important;
@@ -35,14 +41,13 @@ $background: #050505;
   align-items: center;
   justify-content: space-evenly;
   flex-direction: row;
-  background-color: #171616;
+  background-color: $second_color;
   border-radius: 36px;
   gap: 15px;
   padding: 22px;
-  background-color: $second_color;
   color: white;
-  margin-top: 20px;
-  margin-bottom: 80px;
+  margin: 20px 0 80px 0;
+
   .other-tools {
     width: auto;
     height: 100%;
@@ -52,14 +57,19 @@ $background: #050505;
     justify-content: center;
     flex-direction: column;
     gap: 15px;
+
     span {
       color: #8e8e8e;
-      font-family: 'Lexend-Regular', sans-serif;
+      font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+      font-weight: 400;
     }
+
     h4 {
-      font-family: 'Lexend-Regular', sans-serif;
+      font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+      font-weight: 400;
     }
   }
+
   .clario {
     width: auto;
     height: 110%;
@@ -71,20 +81,25 @@ $background: #050505;
     flex-direction: column;
     gap: 15px;
     padding: 30px;
+
     .logo-compare {
       font-size: 30px;
     }
+
     span {
       color: #8e8e8e;
-      font-family: 'Lexend-Regular', sans-serif;
+      font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+      font-weight: 400;
     }
+
     h4 {
-      font-family: 'Lexend-Regular', sans-serif;
+      font-family: 'Manrope-SemiBold', 'Manrope-Variable', sans-serif;
+      font-weight: 400;
     }
   }
 }
 
-//mobile screen
+// Mobile screen
 @media (max-width: 991.98px) {
   .why {
     height: auto;
@@ -95,6 +110,7 @@ $background: #050505;
     flex-direction: column;
     gap: 10px;
   }
+
   .title-badge {
     width: fit-content;
     height: 30px;
@@ -108,69 +124,51 @@ $background: #050505;
     box-shadow: 1px 1px 3px -1px $main_color;
     margin-top: 15%;
     margin-bottom: 20px;
-    font-family: 'Lexend-Regular', sans-serif;
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
   }
+
   .title-why {
     font-size: 35px;
-    font-family: 'Lexend-ExtraLight', sans-serif;
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 200;
     margin-bottom: 20px;
     color: white;
     width: 100%;
     text-align: center;
   }
+
   .comparison {
     height: auto;
     width: 90%;
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    flex-direction: row;
-    background-color: #171616;
-    border-radius: 56px;
-    padding: 22px;
-    background-color: $second_color;
-    color: white;
-    gap: 20px;
     flex-wrap: wrap;
+    border-radius: 56px;
+    gap: 20px;
 
     .other-tools {
       width: 100%;
       height: auto;
-      background-color: $second_color;
       border-radius: 16px;
-      display: flex;
-      justify-content: center;
-      flex-direction: column;
       padding: 12px;
       gap: 15px;
-      span {
-        color: #8e8e8e;
-        font-family: 'Lexend-Regular', sans-serif;
-      }
+
+      span,
       h4 {
-        font-family: 'Lexend-Regular', sans-serif;
+        font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+        font-weight: 400;
       }
     }
+
     .clario {
       width: 100%;
       height: auto;
-      background-color: black;
       border-radius: 16px;
-      box-shadow: 1px 1px 5px -1px $main_color;
-      display: flex;
-      justify-content: center;
-      flex-direction: column;
-      gap: 15px;
       padding: 20px;
-      .logo-compare {
-        font-size: 30px;
-      }
-      span {
-        color: #8e8e8e;
-        font-family: 'Lexend-Regular', sans-serif;
-      }
+
+      span,
       h4 {
-        font-family: 'Lexend-Regular', sans-serif;
+        font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+        font-weight: 400;
       }
     }
   }

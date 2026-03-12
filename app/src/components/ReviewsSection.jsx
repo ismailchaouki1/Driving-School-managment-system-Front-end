@@ -1,80 +1,86 @@
 import '../Styles/App.scss';
 import '../Styles/ReviewsSection.scss';
+
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faQuoteLeft } from '@fortawesome/free-solid-svg-icons';
+
 import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 import { useEffect, useRef } from 'react';
+
+gsap.registerPlugin(ScrollTrigger);
+
 export default function ReviewsSection() {
   const container = useRef(null);
   const title = useRef(null);
   const subtitle = useRef(null);
+
   useEffect(() => {
     const ctx = gsap.context(() => {
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: [title.current, subtitle.current],
-          start: 'top 80%', // when section enters viewport
-          end: 'bottom 20%',
-          toggleActions: 'play none none none', // play once
-          scrub: false, // set to true if you want scroll-controlled animation
-          // markers: true,     // enable for debugging
-        },
-        defaults: {
-          duration: 1.2,
-          ease: 'power3.out', // smoother easing
+          trigger: container.current,
+          start: 'top 75%',
+          toggleActions: 'play none none none',
         },
       });
 
       tl.from(title.current, {
-        x: 200,
+        x: 120,
         opacity: 0,
-        duration: 0.8,
+        duration: 1,
       }).from(
         subtitle.current,
         {
-          x: -200,
+          x: -120,
           opacity: 0,
           duration: 1,
         },
-        '-=0.4',
+        '-=0.6',
       );
-    });
+    }, container);
 
     return () => ctx.revert();
   }, []);
+
   const reviews = [
     {
-      text: 'Big effort - high quality. Best driving school platform out there.',
-      name: 'Yassine M.',
+      text: 'Managing students is so much easier now.',
+      name: 'Yassine El Amrani',
       role: 'Driving Instructor',
     },
     {
-      text: 'This system made managing lessons feel simple. Everything’s in one place.',
-      name: 'Salma T.',
+      text: 'Everything I need for lessons and payments in one place.',
+      name: 'Leila Benjelloun',
       role: 'Auto-école Owner',
     },
     {
-      text: 'I finally track my progress and actually stay consistent.',
-      name: 'Omar K.',
+      text: 'Tracking my practice keeps me consistent and focused.',
+      name: 'Omar Hakam',
       role: 'Student Driver',
     },
     {
-      text: 'No more scheduling chaos. Just clean organization.',
-      name: 'Karim L.',
+      text: 'Schedules and instructors are easy to manage now.',
+      name: 'Fatima Zahra Idrissi',
       role: 'School Manager',
     },
     {
-      text: 'It feels like this app understands how driving schools work.',
-      name: 'Nadia R.',
+      text: 'Lesson tracking and admin tasks are simple and clear.',
+      name: 'Rachid El Fassi',
       role: 'Administrator',
     },
   ];
+
+  const infinite = [...reviews, ...reviews, ...reviews];
+
   return (
     <div className="review" ref={container}>
       <div className="review-titles">
         <div className="review-title" ref={title}>
           <h1>Built for driving schools and future drivers</h1>
         </div>
+
         <div className="review-subtitle" ref={subtitle}>
           <p>
             Learners and driving schools rely on our platform to manage lessons, track progress, and
@@ -82,19 +88,23 @@ export default function ReviewsSection() {
           </p>
         </div>
       </div>
+
+      {/* ROW 1 */}
+
       <section className="reviews">
         <div className="reviews-wrapper">
           <div className="reviews-track">
-            {[...reviews, ...reviews].map((review, i) => (
+            {infinite.map((review, i) => (
               <div className="review-card" key={i}>
                 <div className="review-content">
                   <FontAwesomeIcon className="quote-icon" icon={faQuoteLeft} />
-                  {'  '}
+
                   <p className="review-text">{review.text}</p>
                 </div>
 
                 <div className="review-user">
                   <img src={`https://i.pravatar.cc/50?img=${i + 10}`} alt="" />
+
                   <div>
                     <h4>{review.name}</h4>
                     <span>{review.role}</span>
@@ -105,19 +115,23 @@ export default function ReviewsSection() {
           </div>
         </div>
       </section>
-      <section className="reviews2">
-        <div className="reviews-wrapper2">
-          <div className="reviews-track2">
-            {[...reviews, ...reviews].map((review, i) => (
-              <div className="review-card2" key={i}>
-                <div className="review-content2">
-                  <FontAwesomeIcon className="quote-icon2" icon={faQuoteLeft} />
-                  {'  '}
-                  <p className="review-text2">{review.text}</p>
+
+      {/* ROW 2 */}
+
+      <section className="reviews reverse">
+        <div className="reviews-wrapper">
+          <div className="reviews-track reverse-track">
+            {infinite.map((review, i) => (
+              <div className="review-card" key={i}>
+                <div className="review-content">
+                  <FontAwesomeIcon className="quote-icon" icon={faQuoteLeft} />
+
+                  <p className="review-text">{review.text}</p>
                 </div>
 
-                <div className="review-user2">
-                  <img src={`https://i.pravatar.cc/50?img=${i + 10}`} alt="" />
+                <div className="review-user">
+                  <img src={`https://i.pravatar.cc/50?img=${i + 30}`} alt="" />
+
                   <div>
                     <h4>{review.name}</h4>
                     <span>{review.role}</span>

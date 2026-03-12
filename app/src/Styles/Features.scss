@@ -2,86 +2,109 @@ $main_color: #8cff2e;
 $text_color: #8e8e8e;
 $second_color: #333333bb;
 $background: #050505;
+
 .feature {
   height: 1200px;
   width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  flex-direction: column;
   gap: 10px;
 }
+
+/* TITLE BADGE */
 .title-badge-feature {
   display: flex;
   align-items: center;
   justify-content: center;
   color: $main_color;
-  margin-top: 15%;
-  margin-bottom: 20px;
-  font-family: 'Lexend-Regular', sans-serif;
+  margin: 15% 0 20px 0;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
 }
+
+/* MAIN TITLE */
 .title-feature {
   font-size: 50px;
-  font-family: 'Lexend-ExtraLight', sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 200;
   margin-bottom: 55px;
   color: white;
   width: 70%;
   text-align: center;
 }
 
+/* FEATURES CARDS */
 .features-cards {
   width: 100%;
   display: flex;
-  gap: 25px;
   flex-wrap: wrap;
   justify-content: center;
   align-items: start;
-  font-family: 'Lexend-ExtraLight', sans-serif;
+  gap: 25px;
+  font-family: 'Manrope-ExtraLight', 'Manrope-Variable', sans-serif;
+
   .icon {
     font-size: 30px;
     background: black;
-    width: fit-content;
-    height: auto;
+    width: 60px;
+    height: 60px;
     padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: 16px;
-    color: #8cff2e;
+    color: $main_color;
     margin-bottom: 12px;
+    transition: 0.2s ease;
+
     &:hover {
-      transition: 0.2s ease;
       box-shadow: 1px -1px 5px -1px $main_color;
     }
   }
+
   .feature-card {
     flex: 1 1 320px;
     max-width: 380px;
+    min-height: 230px;
     background-color: #090908;
-    height: auto;
     border-radius: 24px;
     padding: 15px;
     transition: 0.3s ease;
     display: flex;
-    justify-content: space-between;
     flex-direction: column;
-    font-family: 'Lexend-Regular', sans-serif;
+    justify-content: space-between;
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
+
     .feature-card-title {
       color: white;
       margin-top: auto;
+      font-family: 'Manrope-Medium', 'Manrope-Variable', sans-serif;
+      font-weight: 500;
     }
+
     .feature-card-text {
       color: $text_color;
+      font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+      font-weight: 400;
     }
+
     &:hover {
       .icon {
-        transition: 0.2s ease;
         box-shadow: 1px -1px 5px -1px $main_color;
       }
     }
   }
 }
+
+/* GET STARTED BUTTON */
 .feature-getStarted {
   background-color: transparent;
   border: none;
   color: white;
+  font-family: 'Manrope-Medium', 'Manrope-Variable', sans-serif;
   font-weight: 500;
   padding: 12px;
   width: 140px;
@@ -89,6 +112,7 @@ $background: #050505;
   justify-content: center;
   gap: 8px;
   margin-top: 20px;
+
   .arrow-box {
     position: relative;
     width: 18px;
@@ -120,30 +144,23 @@ $background: #050505;
       transform: translate(12px, -12px);
       opacity: 0;
     }
-
     .second {
       transform: translate(0, 0);
       opacity: 1;
     }
   }
 }
-/* ========================= */
-/* 📱 MOBILE */
-/* ========================= */
 
+/* ========================= */
+/* MOBILE */
 @media (max-width: 768px) {
   .feature {
     height: auto;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    flex-direction: column;
     gap: 10px;
   }
 
   .title-feature {
-    font-size: 45px;
+    font-size: 35px;
     margin-top: -20px;
     width: auto;
   }

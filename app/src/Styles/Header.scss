@@ -3,45 +3,55 @@ $text_color: white;
 $second_color: #333333bb;
 $background: #050505;
 
+/* ================== */
+/* NAVBAR */
+/* ================== */
 .navbar {
-  font-family: 'Lexend-Regular', Helvetica, sans-serif;
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
   height: 80px;
   background: rgba(0, 0, 0, 0.4) !important;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(12px);
-
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-
   transition: all 0.3s ease-in-out;
+
+  &::selection {
+    background-color: $main_color;
+    color: black;
+  }
 }
-.navbar::selection {
-  background-color: #8cff2e;
-  color: black;
-}
+
 .navbar-brand {
-  font-weight: bold;
+  font-family: 'Manrope-SemiBold', 'Manrope-Variable', sans-serif;
+  font-weight: 600;
   color: white !important;
 }
 
 .navbar-collapse a {
+  font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+  font-weight: 400;
   color: $text_color !important;
   margin-right: 10px;
-  font-weight: 400;
+
   &:hover {
     color: $main_color !important;
   }
 }
 
 .btn {
+  font-family: 'Manrope-Medium', 'Manrope-Variable', sans-serif;
   font-weight: 500;
   padding: 14px;
   font-size: 15px;
 }
-//get started button style
+
+/* GET STARTED BUTTON */
 .getStarted {
   background-color: $main_color !important;
   color: black;
   border: #8cff2e;
+  font-family: 'Manrope-Medium', 'Manrope-Variable', sans-serif;
   font-weight: 500;
   box-shadow: 1px 1px 60px -10px $main_color;
   padding: 12px;
@@ -69,7 +79,6 @@ $background: #050505;
       transform: translate(0, 0);
       opacity: 1;
     }
-
     .second {
       transform: translate(-12px, 12px);
       opacity: 0;
@@ -77,12 +86,12 @@ $background: #050505;
   }
 
   &:hover {
-    color: #050505 !important;
+    color: $background !important;
+
     .first {
       transform: translate(12px, -12px);
       opacity: 0;
     }
-
     .second {
       transform: translate(0, 0);
       opacity: 1;
@@ -90,11 +99,13 @@ $background: #050505;
   }
 }
 
-//login button style:
+/* LOGIN BUTTON */
 .loginIn {
   background-color: $second_color !important;
   color: white !important;
   border: none;
+  font-family: 'Manrope-Medium', 'Manrope-Variable', sans-serif;
+  font-weight: 500;
   padding: 12px;
   width: 120px;
   display: inline-flex;
@@ -121,7 +132,6 @@ $background: #050505;
       transform: translate(0, 0);
       opacity: 1;
     }
-
     .second {
       transform: translate(-12px, 12px);
       opacity: 0;
@@ -130,11 +140,11 @@ $background: #050505;
 
   &:hover {
     color: white !important;
+
     .first {
       transform: translate(12px, -12px);
       opacity: 0;
     }
-
     .second {
       transform: translate(0, 0);
       opacity: 1;
@@ -142,7 +152,7 @@ $background: #050505;
   }
 }
 
-// HAMBURGER ICON
+/* HAMBURGER ICON */
 .navbar-toggler {
   width: 30px;
   height: 25px;
@@ -168,26 +178,23 @@ $background: #050505;
   top: 20px;
 }
 
-// ☰ → ✕
+/* ☰ → ✕ */
 .navbar-toggler.open .top-bar {
   transform: rotate(45deg);
   top: 10px;
 }
-
 .navbar-toggler.open .middle-bar {
   opacity: 0;
 }
-
 .navbar-toggler.open .bottom-bar {
   transform: rotate(-45deg);
   top: 10px;
 }
 
-// ==========================
-// MOBILE COLLAPSE ANIMATION
-// ==========================
+/* ========================== */
+/* MOBILE COLLAPSE ANIMATION */
+/* ========================== */
 @media (max-width: 991.98px) {
-  // MOBILE MENU
   .navbar-collapse {
     position: fixed;
     top: 80px;
@@ -195,40 +202,34 @@ $background: #050505;
     transform: translateX(-50%) translateY(-20px);
     width: 95%;
     border-radius: 15px;
-
-    background: rgba(0, 0, 0, 0.9); // semi-transparent black
-    backdrop-filter: blur(12px); // subtle blur
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2); // soft shadow
-
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     padding: 20px;
     text-align: center;
     z-index: 999;
-
-    // animation initial state
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
     transition:
       max-height 0.5s ease,
       opacity 0.4s ease,
       transform 0.4s ease;
   }
 
-  // OPEN STATE
   .navbar-collapse.show {
     max-height: 500px;
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
 
-  // LINKS
   .navbar-nav {
     align-items: center;
   }
-
   .navbar-nav .nav-link {
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
     font-size: 22px;
     margin: 10px 0;
     color: white;
@@ -242,14 +243,13 @@ $background: #050505;
     transform: translateY(0);
   }
 
-  // FORM / BUTTONS
   .navbar-collapse form {
     flex-direction: column;
     align-items: center;
     margin-top: 15px;
-  }
 
-  .navbar-collapse form .btn {
-    margin: 8px 0;
+    .btn {
+      margin: 8px 0;
+    }
   }
 }
