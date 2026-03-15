@@ -12,6 +12,7 @@ import ReviewsSection from '../components/ReviewsSection';
 import Features from '../components/Features';
 import ChatwayWidget from '../api/chatbot/ChatwayWidget';
 import HearFromUser from '../components/HearFromUser';
+import PricingSection from '../components/PricingSection';
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -56,6 +57,9 @@ export default function HomePage() {
           </section>
           <section className="container-xl">
             <HearFromUser />
+          </section>
+          <section className="container-xl">
+            <PricingSection />
           </section>
         </div>
       </div>

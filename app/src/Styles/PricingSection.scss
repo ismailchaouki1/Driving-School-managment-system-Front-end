@@ -1,0 +1,545 @@
+$main_color: #8cff2e;
+$text_color: #8e8e8e;
+$second_color: #333333bb;
+$background: #050505;
+
+$font_family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+
+// Animations
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Section
+.pricing-section {
+  height: 1200px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: -40px;
+  background: $background;
+  color: #fff;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+}
+
+// Badge
+.pricing-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: $main_color;
+  margin-top: 160px;
+  margin-bottom: 16px;
+  font-family: $font_family;
+  font-weight: 400;
+
+  &__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $main_color;
+  }
+}
+
+// Headline
+.pricing-headline-wrap {
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+.pricing-headline {
+  font-size: 50px;
+  font-family: $font_family;
+  font-weight: 200;
+  border-radius: 8px;
+  padding: 0.5rem 2rem;
+  display: inline-block;
+  color: #fff;
+  width: 100%;
+  text-align: center;
+}
+
+// Subtext
+.pricing-subtext {
+  width: 50%;
+  text-align: center;
+  color: $text_color;
+  font-size: 18px;
+  font-family: $font_family;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0 0 2rem 0;
+}
+
+// Toggle / Plan switch
+.pricing-plan-switch {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  font-family: $font_family;
+
+  .toggle-label {
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+    color: #6b7280;
+    transition: color 0.2s;
+
+    &.active {
+      color: $main_color;
+    }
+  }
+
+  .track {
+    width: 52px;
+    height: 28px;
+    background: #1a1a1a;
+    border-radius: 999px;
+    border: 1.5px solid #2a2a2a;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: $main_color;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    box-shadow: 0 0 8px rgba($main_color, 0.35);
+    transform: translateX(0);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.yearly {
+      transform: translateX(24px);
+    }
+  }
+
+  .price {
+    animation: slideUp 0.25s ease forwards;
+
+    &.down {
+      animation: slideDown 0.25s ease forwards;
+    }
+  }
+}
+
+// Cards grid
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: 80%;
+  margin: 0 auto 2rem;
+  padding: 0 1.5rem;
+}
+
+// Card
+.pricing-card {
+  background: #111;
+  border-radius: 16px;
+  border: 1px solid $second_color;
+  padding: 1.5rem;
+  position: relative;
+  font-family: $font_family;
+
+  &.popular {
+    border-color: lighten($second_color, 10%);
+  }
+
+  &__popular-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: $main_color;
+    color: #052e16;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-family: $font_family;
+  }
+
+  &__name {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  &__price-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 0.75rem;
+  }
+
+  &__amount {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    animation: slideUp 0.22s ease forwards;
+
+    &.down {
+      animation: slideDown 0.22s ease forwards;
+    }
+  }
+
+  &__period {
+    font-size: 13px;
+    color: $text_color;
+  }
+
+  &__desc {
+    font-size: 13px;
+    color: $text_color;
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+  }
+
+  &__btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: $font_family;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 1.25rem;
+    border: none;
+    transition: opacity 0.15s;
+
+    .arrow-box {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      overflow: hidden;
+
+      .arrow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        transition:
+          transform 0.45s cubic-bezier(0.65, 0, 0.35, 1),
+          opacity 0.3s ease;
+      }
+
+      .first {
+        transform: translate(0, 0);
+        opacity: 1;
+      }
+
+      .second {
+        transform: translate(-12px, 12px);
+        opacity: 0;
+      }
+    }
+
+    &:hover {
+      .first {
+        transform: translate(12px, -12px);
+        opacity: 0;
+      }
+      .second {
+        transform: translate(0, 0);
+        opacity: 1;
+      }
+    }
+
+    &.outline {
+      background: transparent;
+      border: 1px solid $second_color;
+      color: #fff;
+
+      &:hover {
+        border-color: lighten($second_color, 15%);
+      }
+    }
+
+    &.green {
+      background: $main_color;
+      color: #052e16;
+      font-weight: 700;
+    }
+  }
+
+  &__features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+  }
+
+  &__check {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 1.5px solid $main_color;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: 9px;
+      height: 9px;
+    }
+  }
+}
+
+// Trust section
+.pricing-trust {
+  background: #0d0d0d;
+  border-radius: 16px;
+  border: 1px solid $second_color;
+  width: 77%;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  font-family: $font_family;
+
+  &__left {
+    flex: 1;
+    min-width: 180px;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #fff;
+  }
+
+  &__desc {
+    font-size: 13px;
+    color: $text_color;
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+  }
+
+  &__link {
+    color: $main_color;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+
+  &__right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  &__logo-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  &__logo {
+    color: #4b5563;
+    font-size: 20px;
+    font-weight: 700;
+    width: 28px;
+    text-align: center;
+  }
+}
+
+// ─── Tablet — 1024px ──────────────────────────────────────────────────────────
+@media (max-width: 1024px) {
+  .pricing-section {
+    height: auto;
+    padding-bottom: 4rem;
+  }
+
+  .pricing-badge {
+    margin-top: 80px;
+  }
+
+  .pricing-headline {
+    font-size: 40px;
+    width: 90%;
+  }
+
+  .pricing-subtext {
+    width: 70%;
+    font-size: 16px;
+  }
+
+  .pricing-cards {
+    width: 90%;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .pricing-trust {
+    width: 90%;
+  }
+}
+
+// ─── Small tablet — 768px ─────────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .pricing-badge {
+    margin-top: 60px;
+    margin-bottom: 12px;
+  }
+
+  .pricing-headline {
+    font-size: 32px;
+    width: 95%;
+    padding: 0.4rem 1rem;
+  }
+
+  .pricing-subtext {
+    width: 85%;
+    font-size: 15px;
+    margin-bottom: 1.5rem;
+  }
+
+  .pricing-plan-switch {
+    padding: 1rem 1.25rem;
+  }
+
+  .pricing-cards {
+    width: 95%;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 1rem;
+  }
+
+  .pricing-card {
+    &__amount {
+      font-size: 2.5rem;
+    }
+  }
+
+  .pricing-trust {
+    width: 95%;
+    flex-direction: column;
+    align-items: flex-start;
+
+    &__right {
+      width: 100%;
+    }
+
+    &__logo-row {
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  }
+}
+
+// ─── Mobile portrait — 480px ──────────────────────────────────────────────────
+@media (max-width: 480px) {
+  .pricing-badge {
+    margin-top: 48px;
+    font-size: 13px;
+  }
+
+  .pricing-headline {
+    font-size: 26px;
+    width: 100%;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .pricing-subtext {
+    width: 92%;
+    font-size: 14px;
+  }
+
+  .pricing-plan-switch {
+    padding: 0.75rem 1rem;
+    gap: 10px;
+
+    .toggle-label {
+      font-size: 14px;
+    }
+  }
+
+  .pricing-cards {
+    width: 100%;
+    grid-template-columns: 1fr;
+    padding: 0 1rem;
+    gap: 12px;
+  }
+
+  .pricing-card {
+    padding: 1.25rem;
+
+    &__amount {
+      font-size: 2.25rem;
+    }
+
+    &__name {
+      font-size: 16px;
+    }
+
+    &__btn {
+      font-size: 13px;
+      padding: 9px;
+    }
+  }
+
+  .pricing-trust {
+    width: calc(100% - 2rem);
+    margin: 0 1rem;
+
+    &__title {
+      font-size: 17px;
+    }
+
+    &__logo {
+      font-size: 17px;
+    }
+  }
+}
