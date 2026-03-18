@@ -395,6 +395,24 @@ $font_family: 'Manrope-SemiBold', 'Manrope-Variable', sans-serif;
     width: 28px;
     text-align: center;
   }
+  .pricing-trust__logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+
+    svg {
+      width: 28px;
+      height: 28px;
+      color: rgba(255, 255, 255, 0.2); // muted grey like the reference
+      transition: color 0.2s ease;
+    }
+
+    &:hover svg {
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
 }
 
 // ─── Tablet — 1024px ──────────────────────────────────────────────────────────

@@ -7,7 +7,8 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import gsap from 'gsap';
 
 export default function FAQ() {
   const [expanded1, setExpanded1] = React.useState(false);
@@ -58,18 +59,46 @@ export default function FAQ() {
       fontWeight: 500,
     },
   };
+  const container = useRef(null);
+  const title = useRef(null);
+  const subtitle = useRef(null);
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: container.current,
+          start: 'top 80%', // when section enters viewport
+          end: 'bottom 20%',
+          toggleActions: 'play none none none', // play once
+          scrub: false, // set to true if you want scroll-controlled animation
+          // markers: true,     // enable for debugging
+        },
+        defaults: {
+          ease: 'power3.out', // smoother easing
+        },
+      });
 
+      tl.from(title.current, {
+        x: -180,
+        opacity: 0,
+        duration: 1.2,
+        stagger: 0.3, // smooth stagger animation
+      }).from(subtitle.current, { x: 120, opacity: 0, stagger: 0.3, duration: 0.7 });
+    }, container);
+
+    return () => ctx.revert(); // proper cleanup
+  }, []);
   return (
-    <div className="faq-section">
+    <div className="faq-section" ref={container}>
       <div className="faq-titles">
-        <div className="faq-title">
+        <div className="faq-title" ref={title}>
           <h1>
             Got questions? <br />
             We’ve got answers.
           </h1>
         </div>
 
-        <div className="faq-subtitle">
+        <div className="faq-subtitle" ref={subtitle}>
           <p>Here’s everything you need to know before getting started.</p>
         </div>
       </div>
