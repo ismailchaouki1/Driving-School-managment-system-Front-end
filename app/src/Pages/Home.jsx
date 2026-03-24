@@ -16,6 +16,7 @@ import PricingSection from '../components/PricingSection';
 import FAQ from '../components/FAQ';
 import BlogSection from '../components/BlogSection';
 import ReadyToStartCard from '../components/ReadyToStartCard';
+import Footer from '../components/Footer';
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
@@ -35,12 +36,12 @@ export default function HomePage() {
 
   return (
     <div id="smooth-wrapper">
+      <header className="container-xl">
+        <Header />
+      </header>
       <div id="smooth-content">
         <div className="mainContainer">
           <ChatwayWidget />
-          <header className="container-xl">
-            <Header />
-          </header>
 
           <section className="container-md">
             <HeroSection />
@@ -72,6 +73,9 @@ export default function HomePage() {
           </section>
           <section className="container-md">
             <ReadyToStartCard />
+          </section>
+          <section className="container-fluid">
+            <Footer />
           </section>
         </div>
       </div>
