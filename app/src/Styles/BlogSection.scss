@@ -256,3 +256,67 @@ $background: #050505;
     }
   }
 }
+
+///blog page style :
+
+.blogpage-titles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 100px;
+
+  .blogpage-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $main_color;
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
+    margin: 45% 0 20px; // top 15%, bottom 20px, shorthand
+
+    @media (min-width: 768px) {
+      margin-top: 200px;
+    }
+  }
+
+  .blogpage-title {
+    font-family: 'Manrope-SemiBold', 'Manrope-Variable', sans-serif;
+    font-weight: 200;
+    font-size: 50px;
+    color: #fff;
+    width: 70%;
+    text-align: center;
+    letter-spacing: -1px;
+    margin-bottom: 20px;
+
+    @media (min-width: 768px) {
+      width: 85%;
+    }
+
+    @media (min-width: 1024px) {
+      width: 70%;
+    }
+  }
+
+  .blogpage-desc {
+    font-family: 'Manrope-Regular', 'Manrope-Variable', sans-serif;
+    font-weight: 400;
+    color: #8e8e8e;
+    font-size: 16px;
+    text-align: center;
+
+    @media (max-width: 768px) {
+      font-size: 14px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    margin-bottom: 40px;
+
+    .blogpage-badge {
+      margin-top: 140px;
+    }
+  }
+}

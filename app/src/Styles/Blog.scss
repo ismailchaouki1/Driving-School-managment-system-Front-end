@@ -1,0 +1,16 @@
+.mainContainer {
+  min-height: 100vh;
+  min-height: 100vh;
+  background-color: black;
+}
+.blogs {
+  margin-bottom: 500px !important; // Desktop default
+
+  @media (max-width: 1024px) {
+    margin-bottom: 300px; // Tablet
+  }
+
+  @media (max-width: 768px) {
+    margin-bottom: 150px; // Mobile
+  }
+}
