@@ -63,7 +63,7 @@ export default function Header({ appear = true }) {
     return (
       <nav className="navbar navbar-expand-lg fixed-top">
         <div className="container-md">
-          <Link className="navbar-brand" to={'/'}>
+          <Link className="navbar-brand" to={'/'} onClick={handleScroll}>
             <a className="navbar-brand" href="#">
               <svg
                 xmlns="http://www.w3.org/2000/svg"

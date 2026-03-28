@@ -2,8 +2,54 @@ import { Link } from 'react-router';
 import '../Styles/App.scss';
 import '../Styles/Footer.scss';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
-
+import { useEffect, useRef } from 'react';
 const Footer = () => {
+  ////test
+  const chatwayLoaded = useRef(false);
+
+  useEffect(() => {
+    // Check if Chatway script is already loaded
+    if (window.$chatway) {
+      chatwayLoaded.current = true;
+      return;
+    }
+
+    // Load Chatway script dynamically
+    const script = document.createElement('script');
+    script.src = 'https://cdn.chatway.app/widget.js'; // Replace with your actual Chatway script URL
+    script.async = true;
+    script.onload = () => {
+      chatwayLoaded.current = true;
+      console.log('Chatway widget loaded');
+    };
+    document.body.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  const openChatWindow = (e) => {
+    e.preventDefault();
+
+    // Check if Chatway widget is available and open it
+    if (chatwayLoaded.current && window.$chatway && window.$chatway.openChatwayWidget) {
+      window.$chatway.openChatwayWidget();
+    } else {
+      console.log('Chatway widget not yet loaded');
+      // Optional: Retry after a short delay
+      setTimeout(() => {
+        if (window.$chatway && window.$chatway.openChatwayWidget) {
+          window.$chatway.openChatwayWidget();
+        }
+      }, 500);
+    }
+  };
+
+  ////test
   const handleScroll = () => {
     // 1. Get the existing instance
     const smoother = ScrollSmoother.get();
@@ -98,7 +144,17 @@ const Footer = () => {
           <div className="footer-column">
             <h4>Information</h4>
             <ul>
-              <li className="nav-item">Contact</li>
+              <li className="nav-item">
+                <button
+                  className="nav-link contact-button"
+                  onClick={openChatWindow}
+                  aria-label="Open chat support"
+                  style={{ background: 'none', border: 'none', padding: 0 }}
+                >
+                  Contact
+                </button>
+              </li>
+
               <Link onClick={handleScroll} className="nav-link" to={'/privacy-policy'}>
                 <li className="nav-item">
                   <a className="nav-link">Privacy Policy</a>
