@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import '../Styles/Login.scss';
 import gsap from 'gsap';
-
+import { ScrollSmoother } from 'gsap/ScrollSmoother';
+import { Link } from 'react-router';
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -64,7 +65,16 @@ export default function Login() {
       );
     return () => tl.revert();
   }, []);
+  // handle scroll to top
+  const handleScroll = () => {
+    // 1. Get the existing instance
+    const smoother = ScrollSmoother.get();
 
+    if (smoother) {
+      // 2. Tell GSAP to scroll to the top (0) smoothly
+      smoother.scrollTo(0, true);
+    }
+  };
   return (
     <div className="login" id="smooth-wrapper">
       <div className="login__box" id="smooth-content">
@@ -143,7 +153,16 @@ export default function Login() {
 
           {/* Footer */}
           <p className="login__footer">
-            Don't have an account? <span>Sign up</span>
+            Don't have an account?
+            <span>
+              <Link
+                style={{ textDecoration: 'none', color: '#8cff2e' }}
+                onClick={handleScroll}
+                to={'/signup'}
+              >
+                Sign up
+              </Link>
+            </span>
           </p>
         </form>
       </div>
