@@ -117,3 +117,13 @@ body::selection {
 ::-webkit-scrollbar-thumb:hover {
   background-color: #4c9316;
 }
+
+.main-content {
+  overflow-y: auto !important;
+  height: 100vh !important;
+}
+
+.scrollable-content {
+  overflow-y: auto !important;
+  flex: 1 !important;
+}

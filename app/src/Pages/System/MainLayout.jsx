@@ -1,6 +1,7 @@
 // Pages/System/MainLayout.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
 import {
   LayoutDashboard,
   Users,
@@ -16,12 +17,21 @@ import {
   User,
   ChevronDown,
   ChartArea,
+  CalendarSync,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  UserPlus,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 import '../../Styles/System/MainLayout.scss';
 
 const MainLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const { notifications, markAsRead, markAllAsRead, getUnreadCount } = useNotifications();
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -29,6 +39,7 @@ const MainLayout = () => {
     { path: '/system/dashboard', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
     { path: '/system/students', icon: <Users size={20} />, label: 'Students' },
     { path: '/system/sessions', icon: <Calendar size={20} />, label: 'Sessions' },
+    { path: '/system/calendar', icon: <CalendarSync size={20} />, label: 'Calendar' },
     { path: '/system/vehicles', icon: <Car size={20} />, label: 'Vehicles' },
     { path: '/system/payments', icon: <CreditCard size={20} />, label: 'Payments' },
     { path: '/system/statistics', icon: <ChartArea size={20} />, label: 'Statistics' },
@@ -38,6 +49,72 @@ const MainLayout = () => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const unreadCount = getUnreadCount();
+
+  const toggleNotifications = (e) => {
+    e.stopPropagation();
+    setNotificationsOpen(!notificationsOpen);
+    if (userMenuOpen) setUserMenuOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationsOpen && !event.target.closest('.notification-container')) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [notificationsOpen]);
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'student':
+        return <UserPlus size={14} />;
+      case 'session':
+        return <CalendarIcon size={14} />;
+      case 'payment':
+        return <CheckCircle size={14} />;
+      case 'reminder':
+        return <Clock size={14} />;
+      default:
+        return <Bell size={14} />;
+    }
+  };
+
+  const formatTime = (time) => {
+    const now = new Date();
+    const notificationTime = new Date(time);
+    const diff = Math.floor((now - notificationTime) / 1000);
+
+    if (diff < 60) return `${diff} seconds ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
+    return notificationTime.toLocaleDateString();
+  };
+
+  const handleNotificationClick = (notification) => {
+    markAsRead(notification.id);
+
+    switch (notification.type) {
+      case 'student':
+        navigate('/system/students');
+        break;
+      case 'session':
+        navigate('/system/sessions');
+        break;
+      case 'payment':
+        navigate('/system/payments');
+        break;
+      default:
+        break;
+    }
+
+    setNotificationsOpen(false);
   };
 
   return (
@@ -86,17 +163,6 @@ const MainLayout = () => {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-info-sidebar">
-            <div className="user-avatar-sidebar">
-              <User size={20} />
-            </div>
-            {sidebarOpen && (
-              <div className="user-details">
-                <span className="user-name">Alex Johnson</span>
-                <span className="user-email">alex@autoecole.com</span>
-              </div>
-            )}
-          </div>
           <button onClick={handleLogout} className="logout-btn">
             <LogOut size={20} />
             {sidebarOpen && <span>Logout</span>}
@@ -117,10 +183,58 @@ const MainLayout = () => {
               <Search size={18} />
               <input type="text" placeholder="Search..." />
             </div>
-            <button className="notification-btn">
-              <Bell size={20} />
-              <span className="notification-badge"></span>
-            </button>
+
+            <div className="notification-container">
+              <button
+                className="notification-btn"
+                onClick={toggleNotifications}
+                aria-label="Notifications"
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+              </button>
+
+              {notificationsOpen && (
+                <div className="notifications-dropdown">
+                  <div className="notifications-header">
+                    <h3>Notifications</h3>
+                    {unreadCount > 0 && (
+                      <button className="mark-all-read" onClick={markAllAsRead}>
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="notifications-list">
+                    {notifications.length === 0 ? (
+                      <div className="no-notifications">
+                        <Bell size={32} />
+                        <p>No notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div className="notification-icon">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+                          <div className="notification-content">
+                            <div className="notification-title">{notification.title}</div>
+                            <div className="notification-message">{notification.message}</div>
+                            <div className="notification-time">{formatTime(notification.time)}</div>
+                          </div>
+                          {!notification.read && <div className="unread-dot" />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="user-menu" onClick={() => setUserMenuOpen(!userMenuOpen)}>
               <div className="user-avatar">
                 <User size={20} />

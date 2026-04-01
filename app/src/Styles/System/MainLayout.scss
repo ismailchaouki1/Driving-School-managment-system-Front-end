@@ -253,12 +253,26 @@
   margin-left: 260px;
   transition: margin-left 0.3s ease;
   min-height: 100vh;
-  background: #f5f7fa; // Light background
+  background: #f5f7fa;
+  width: calc(100% - 260px);
+  max-width: calc(100% - 260px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+
+  @media (max-width: 1024px) {
+    margin-left: 100px;
+    width: calc(100% - 100px);
+    max-width: calc(100% - 100px);
+  }
 }
 
 .sidebar.closed ~ .main-content {
   margin-left: 100px;
+  width: calc(100% - 100px);
+  max-width: calc(100% - 100px);
 }
+
 .sidebar.closed {
   align-items: center !important;
 }
@@ -274,7 +288,6 @@
   position: sticky;
   top: 0;
   z-index: 99;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .header-left h1 {
@@ -421,8 +434,21 @@
 }
 
 .content-area {
-  padding: 32px;
-  background: #f5f7fa; // Light background
+  padding: 24px 32px;
+  background: white;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  min-height: calc(100vh - 73px); // Subtract header height (adjust based on your header height)
+
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
 }
 
 // Responsive Design
@@ -557,4 +583,264 @@
   .sidebar.closed {
     align-items: center !important;
   }
+}
+
+// Add to MainLayout.scss
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: calc(100vh - 73px); // Adjust based on your header height
+  position: relative;
+}
+
+// Remove overflow from .content-area
+.content-area {
+  padding: 24px 32px;
+  background: white;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    padding: 20px;
+  }
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
+}
+
+// Notifications Dropdown
+.notification-container {
+  position: relative;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 380px;
+  max-height: 500px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e9edf2;
+  overflow: hidden;
+  z-index: 1000;
+  animation: slideDown 0.2s ease;
+
+  @media (max-width: 640px) {
+    width: calc(100vw - 32px);
+    right: -80px;
+  }
+
+  .notifications-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+
+    h3 {
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Manrope-Bold', sans-serif;
+      color: #0f172a;
+      margin: 0;
+    }
+
+    .mark-all-read {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Manrope-SemiBold', sans-serif;
+      color: $main_color;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba($main_color, 0.1);
+      }
+    }
+  }
+
+  .notifications-list {
+    max-height: 380px;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $main_color;
+      border-radius: 4px;
+    }
+  }
+
+  .notification-item {
+    display: flex;
+    gap: 12px;
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    border-bottom: 1px solid #f8fafc;
+
+    &:hover {
+      background: #fafbff;
+    }
+
+    &.unread {
+      background: rgba($main_color, 0.03);
+
+      .notification-title {
+        font-weight: 700;
+        color: $main_color;
+      }
+    }
+
+    .notification-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: $second_color;
+      color: $main_color;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .notification-content {
+      flex: 1;
+
+      .notification-title {
+        font-size: 13px;
+        font-weight: 600;
+        font-family: 'Manrope-SemiBold', sans-serif;
+        color: #0f172a;
+        margin-bottom: 4px;
+      }
+
+      .notification-message {
+        font-size: 12px;
+        font-family: 'Manrope-Regular', sans-serif;
+        color: #64748b;
+        line-height: 1.4;
+        margin-bottom: 6px;
+      }
+
+      .notification-time {
+        font-size: 10px;
+        font-family: 'Manrope-Regular', sans-serif;
+        color: #94a3b8;
+      }
+    }
+
+    .unread-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: $main_color;
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  }
+
+  .notifications-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #f1f5f9;
+    text-align: center;
+
+    .view-all {
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Manrope-SemiBold', sans-serif;
+      color: $main_color;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba($main_color, 0.1);
+      }
+    }
+  }
+
+  .no-notifications {
+    text-align: center;
+    padding: 48px 20px;
+    color: #94a3b8;
+
+    svg {
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    p {
+      font-size: 13px;
+      margin: 0;
+    }
+  }
+}
+
+// Animation
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Update notification badge to show count
+.notification-btn {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 10px;
+  color: #6b7280;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f3f4f6;
+    color: $main_color;
+  }
+}
+
+.notification-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: 'Manrope-Bold', sans-serif;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
 }
