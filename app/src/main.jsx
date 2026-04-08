@@ -6,3 +6,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 );
+// Add this to your main index.js or App.jsx
+const originalError = console.error;
+console.error = function (...args) {
+  if (
+    args[0]?.includes?.('Unchecked runtime.lastError') ||
+    args[0]?.includes?.('message channel closed')
+  ) {
+    return;
+  }
+  originalError.apply(console, args);
+};

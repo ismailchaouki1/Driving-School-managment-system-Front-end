@@ -13,9 +13,9 @@ import Sessions from '../Pages/System/Sessions';
 import Vehicles from '../Pages/System/Vehicles';
 import Payments from '../Pages/System/Payments';
 import Statistics from '../Pages/System/Statistics';
-import Settings from '../Pages/System/Settings';
 import Calendar from '../Pages/System/Calendar';
 import { NotificationProvider } from '../contexts/NotificationContext';
+import Instructors from '../Pages/System/Instructors';
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -35,9 +35,9 @@ export default function AppRoutes() {
             <Route path="sessions" element={<Sessions />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="vehicles" element={<Vehicles />} />
+            <Route path="instructors" element={<Instructors />} />
             <Route path="payments" element={<Payments />} />
             <Route path="statistics" element={<Statistics />} />
-            <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
       </NotificationProvider>

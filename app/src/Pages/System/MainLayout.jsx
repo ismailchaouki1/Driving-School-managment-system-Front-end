@@ -35,6 +35,7 @@ import {
   BellRing,
   Save,
   XCircle,
+  BriefcaseBusiness,
 } from 'lucide-react';
 import '../../Styles/System/MainLayout.scss';
 
@@ -87,9 +88,9 @@ const MainLayout = () => {
     { path: '/system/sessions', icon: <Calendar size={20} />, label: 'Sessions' },
     { path: '/system/calendar', icon: <CalendarSync size={20} />, label: 'Calendar' },
     { path: '/system/vehicles', icon: <Car size={20} />, label: 'Vehicles' },
+    { path: '/system/instructors', icon: <BriefcaseBusiness size={20} />, label: 'Instructors' },
     { path: '/system/payments', icon: <CreditCard size={20} />, label: 'Payments' },
     { path: '/system/statistics', icon: <ChartArea size={20} />, label: 'Statistics' },
-    { path: '/system/settings', icon: <Settings size={20} />, label: 'Settings' },
   ];
 
   const showToast = (msg, type = 'success') => {
