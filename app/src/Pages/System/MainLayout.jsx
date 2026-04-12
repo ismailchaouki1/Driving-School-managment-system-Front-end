@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios'; // Create this file
 import {
   LayoutDashboard,
   Users,
@@ -36,6 +37,7 @@ import {
   Save,
   XCircle,
   BriefcaseBusiness,
+  Loader,
 } from 'lucide-react';
 import '../../Styles/System/MainLayout.scss';
 
@@ -46,34 +48,32 @@ const MainLayout = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { notifications, markAsRead, markAllAsRead, getUnreadCount } = useNotifications();
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  // User data state
-  const [userData, setUserData] = useState({
-    id: 1,
-    name: 'Alex Johnson',
-    email: 'alex.johnson@clario.com',
-    role: 'Administrator',
-    avatar: null,
-    phone: '+212 612 345 678',
-    joinDate: '2024-01-15',
-    lastLogin: new Date().toLocaleString(),
-    preferences: {
-      language: 'en',
-      notifications: true,
-      emailUpdates: true,
-    },
+  // User data state - load from localStorage initially
+  const [userData, setUserData] = useState(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        return JSON.parse(savedUser);
+      } catch (e) {
+        return e;
+      }
+    }
+    return null;
   });
 
   // Form states for profile editing
   const [editProfileForm, setEditProfileForm] = useState({
-    name: userData.name,
-    email: userData.email,
-    phone: userData.phone,
+    name: '',
+    email: '',
+    phone: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -98,10 +98,58 @@ const MainLayout = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-    showToast('Logged out successfully', 'success');
+  // Fetch current user data on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const response = await axios.get('/me');
+        if (response.data.success) {
+          const user = response.data.data.user;
+          setUserData(user);
+          localStorage.setItem('user', JSON.stringify(user));
+
+          // Update form with user data
+          setEditProfileForm({
+            name: user.name,
+            email: user.email,
+            phone: user.phone || '',
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch user data:', error);
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+      showToast('Logged out successfully', 'success');
+    }
   };
 
   const unreadCount = getUnreadCount();
@@ -183,9 +231,9 @@ const MainLayout = () => {
   const openProfileModal = () => {
     setUserMenuOpen(false);
     setEditProfileForm({
-      name: userData.name,
-      email: userData.email,
-      phone: userData.phone,
+      name: userData?.name || '',
+      email: userData?.email || '',
+      phone: userData?.phone || '',
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
@@ -197,9 +245,9 @@ const MainLayout = () => {
   const closeProfileModal = () => {
     setProfileModalOpen(false);
     setEditProfileForm({
-      name: userData.name,
-      email: userData.email,
-      phone: userData.phone,
+      name: userData?.name || '',
+      email: userData?.email || '',
+      phone: userData?.phone || '',
       currentPassword: '',
       newPassword: '',
       confirmPassword: '',
@@ -236,20 +284,45 @@ const MainLayout = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleProfileUpdate = () => {
+  const handleProfileUpdate = async () => {
     if (!validateProfileForm()) return;
 
-    // Update user data
-    setUserData({
-      ...userData,
-      name: editProfileForm.name,
-      email: editProfileForm.email,
-      phone: editProfileForm.phone,
-    });
+    setIsUpdating(true);
 
-    // Here you would typically make an API call to update user data
-    showToast('Profile updated successfully', 'success');
-    closeProfileModal();
+    try {
+      const updateData = {
+        name: editProfileForm.name,
+        email: editProfileForm.email,
+        phone: editProfileForm.phone,
+      };
+
+      // Add password if changing
+      if (editProfileForm.newPassword) {
+        updateData.current_password = editProfileForm.currentPassword;
+        updateData.password = editProfileForm.newPassword;
+        updateData.password_confirmation = editProfileForm.confirmPassword;
+      }
+
+      const response = await axios.put('/profile', updateData);
+
+      if (response.data.success) {
+        // Update local user data
+        const updatedUser = { ...userData, ...updateData };
+        setUserData(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+
+        showToast('Profile updated successfully', 'success');
+        closeProfileModal();
+      }
+    } catch (error) {
+      if (error.response?.data?.errors) {
+        setFormErrors(error.response.data.errors);
+      } else {
+        showToast(error.response?.data?.message || 'Failed to update profile', 'error');
+      }
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   // Settings Modal Handlers
@@ -264,7 +337,6 @@ const MainLayout = () => {
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
-    // Apply dark mode to body
     if (!darkMode) {
       document.body.classList.add('dark-mode');
     } else {
@@ -273,18 +345,29 @@ const MainLayout = () => {
     showToast(`${!darkMode ? 'Dark' : 'Light'} mode activated`, 'success');
   };
 
-  const updatePreference = (key, value) => {
-    setUserData({
-      ...userData,
-      preferences: {
-        ...userData.preferences,
+  const updatePreference = async (key, value) => {
+    try {
+      const response = await axios.put('/preferences', {
         [key]: value,
-      },
-    });
-    showToast('Preferences updated', 'success');
+      });
+
+      if (response.data.success) {
+        setUserData({
+          ...userData,
+          preferences: {
+            ...userData.preferences,
+            [key]: value,
+          },
+        });
+        showToast('Preferences updated', 'success');
+      }
+    } catch (error) {
+      showToast('Failed to update preferences', 'error' + error);
+    }
   };
 
   const getInitials = (name) => {
+    if (!name) return 'U';
     return name
       .split(' ')
       .map((word) => word[0])
@@ -292,6 +375,24 @@ const MainLayout = () => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  // Show loading state while fetching user data
+  if (isLoading) {
+    return (
+      <div className="main-layout-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect if no user data
+  if (!userData) {
+    navigate('/login');
+    return null;
+  }
 
   return (
     <div className={`main-layout ${darkMode ? 'dark-theme' : ''}`}>
@@ -416,12 +517,12 @@ const MainLayout = () => {
                   {userData.avatar ? (
                     <img src={userData.avatar} alt={userData.name} />
                   ) : (
-                    <User size={20} />
+                    <span className="avatar-initials">{getInitials(userData.name)}</span>
                   )}
                 </div>
                 <div className="user-info">
                   <span className="user-name">{userData.name}</span>
-                  <span className="user-role">{userData.role}</span>
+                  <span className="user-role">{userData.role || 'User'}</span>
                 </div>
                 <ChevronDown size={16} />
               </div>
@@ -586,11 +687,11 @@ const MainLayout = () => {
               <div className="info-section">
                 <div className="info-item">
                   <Clock size={14} />
-                  <span>Member since: {userData.joinDate}</span>
+                  <span>Member since: {userData.created_at?.split('T')[0] || 'N/A'}</span>
                 </div>
                 <div className="info-item">
                   <Shield size={14} />
-                  <span>Last login: {userData.lastLogin}</span>
+                  <span>Role: {userData.role || 'User'}</span>
                 </div>
               </div>
             </div>
@@ -599,9 +700,9 @@ const MainLayout = () => {
               <button onClick={closeProfileModal} className="btn-cancel">
                 Cancel
               </button>
-              <button onClick={handleProfileUpdate} className="btn-save">
+              <button onClick={handleProfileUpdate} className="btn-save" disabled={isUpdating}>
                 <Save size={14} />
-                Save Changes
+                {isUpdating ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -667,9 +768,12 @@ const MainLayout = () => {
                     </div>
                   </div>
                   <button
-                    className={`toggle-switch ${userData.preferences.notifications ? 'active' : ''}`}
+                    className={`toggle-switch ${userData.preferences?.notifications !== false ? 'active' : ''}`}
                     onClick={() =>
-                      updatePreference('notifications', !userData.preferences.notifications)
+                      updatePreference(
+                        'notifications',
+                        userData.preferences?.notifications === false,
+                      )
                     }
                   >
                     <span className="toggle-slider"></span>
@@ -684,9 +788,9 @@ const MainLayout = () => {
                     </div>
                   </div>
                   <button
-                    className={`toggle-switch ${userData.preferences.emailUpdates ? 'active' : ''}`}
+                    className={`toggle-switch ${userData.preferences?.emailUpdates !== false ? 'active' : ''}`}
                     onClick={() =>
-                      updatePreference('emailUpdates', !userData.preferences.emailUpdates)
+                      updatePreference('emailUpdates', userData.preferences?.emailUpdates === false)
                     }
                   >
                     <span className="toggle-slider"></span>
@@ -709,7 +813,7 @@ const MainLayout = () => {
                   </div>
                   <select
                     className="settings-select"
-                    value={userData.preferences.language}
+                    value={userData.preferences?.language || 'en'}
                     onChange={(e) => updatePreference('language', e.target.value)}
                   >
                     <option value="en">English</option>

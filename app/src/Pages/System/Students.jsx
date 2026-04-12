@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -27,111 +27,15 @@ import {
   DollarSign,
   Grid,
   List,
+  Loader,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Students.scss';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const CATEGORIES = ['B', 'A', 'A1', 'C', 'D', 'BE'];
 const PAYMENT_STATUSES = ['Complete', 'Partial', 'Pending'];
-
-const MOCK_STUDENTS = [
-  {
-    id_client: 1,
-    last_name: 'Alami',
-    first_name: 'Youssef',
-    cin: 'AB123456',
-    age: 22,
-    email: 'youssef.alami@gmail.com',
-    phone: '0612345678',
-    address: 'Ibn Battuta Street, Marrakech',
-    type: 'B',
-    initial_payment: 3000,
-    total_price: 6000,
-    payment_status: 'Partial',
-    registration_date: '2024-11-10',
-    photo: null,
-    parent_name: 'Mohammed Alami',
-    emergency_contact: '0612345679',
-    enrollment_date: '2024-11-10',
-  },
-  {
-    id_client: 2,
-    last_name: 'Benali',
-    first_name: 'Fatima',
-    cin: 'CD789012',
-    age: 19,
-    email: 'fatima.benali@gmail.com',
-    phone: '0698765432',
-    address: 'Mohammed V Ave, Casablanca',
-    type: 'B',
-    initial_payment: 6000,
-    total_price: 6000,
-    payment_status: 'Complete',
-    registration_date: '2024-10-05',
-    photo: null,
-    parent_name: 'Ahmed Benali',
-    emergency_contact: '0698765433',
-    enrollment_date: '2024-10-05',
-  },
-  {
-    id_client: 3,
-    last_name: 'Cherkaoui',
-    first_name: 'Karim',
-    cin: 'EF345678',
-    age: 35,
-    email: 'karim.ch@outlook.com',
-    phone: '0655443322',
-    address: 'Gueliz District, Marrakech',
-    type: 'C',
-    initial_payment: 0,
-    total_price: 9000,
-    payment_status: 'Pending',
-    registration_date: '2025-01-18',
-    photo: null,
-    parent_name: 'N/A',
-    emergency_contact: '0655443323',
-    enrollment_date: '2025-01-18',
-  },
-  {
-    id_client: 4,
-    last_name: 'Tazi',
-    first_name: 'Nadia',
-    cin: 'GH901234',
-    age: 27,
-    email: 'nadia.tazi@gmail.com',
-    phone: '0611223344',
-    address: 'Medina, Fez',
-    type: 'A',
-    initial_payment: 4500,
-    total_price: 4500,
-    payment_status: 'Complete',
-    registration_date: '2024-12-22',
-    photo: null,
-    parent_name: 'Omar Tazi',
-    emergency_contact: '0611223345',
-    enrollment_date: '2024-12-22',
-  },
-  {
-    id_client: 5,
-    last_name: 'Ouazzani',
-    first_name: 'Hassan',
-    cin: 'IJ567890',
-    age: 31,
-    email: 'hassan.o@gmail.com',
-    phone: '0677889900',
-    address: 'Hivernage, Marrakech',
-    type: 'BE',
-    initial_payment: 2000,
-    total_price: 7500,
-    payment_status: 'Partial',
-    registration_date: '2025-02-03',
-    photo: null,
-    parent_name: 'Fatima Ouazzani',
-    emergency_contact: '0677889901',
-    enrollment_date: '2025-02-03',
-  },
-];
 
 const EMPTY_FORM = {
   last_name: '',
@@ -153,7 +57,7 @@ const EMPTY_FORM = {
 /* ─────────────── Sub-components ─────────────── */
 
 const StatusBadge = ({ status }) => {
-  const statusLower = status.toLowerCase();
+  const statusLower = status?.toLowerCase() || 'pending';
   const Icon = status === 'Complete' ? CheckCircle : status === 'Partial' ? Clock : AlertCircle;
 
   return (
@@ -169,6 +73,7 @@ const Avatar = ({ last_name, first_name }) => {
 };
 
 const getInitials = (name) => {
+  if (!name) return '??';
   return name
     .split(' ')
     .map((word) => word[0])
@@ -186,22 +91,19 @@ const getRandomGradient = (id) => {
     'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
     'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
   ];
-  return gradients[id % gradients.length];
+  return gradients[(id || 0) % gradients.length];
 };
 
 // Card Component
 const StudentCard = ({ student, onEdit, onDelete, onPrint, onView }) => {
   const [expanded, setExpanded] = useState(false);
-  const paid = Number(student.initial_payment);
+  const paid = Number(student.initial_payment || 0);
   const total = Number(student.total_price) || 1;
   const pct = Math.min(100, Math.round((paid / total) * 100));
 
   return (
     <div className={`student-card ${expanded ? 'expanded' : ''}`}>
-      <div
-        className="card-header-gradient"
-        style={{ background: getRandomGradient(student.id_client) }}
-      >
+      <div className="card-header-gradient" style={{ background: getRandomGradient(student.id) }}>
         <div className="student-avatar-large">
           {student.photo ? (
             <img src={student.photo} alt={student.first_name} />
@@ -266,7 +168,7 @@ const StudentCard = ({ student, onEdit, onDelete, onPrint, onView }) => {
       </div>
 
       <div className="card-actions">
-        <button className="action-btn edit" onClick={() => onView(student)}>
+        <button className="action-btn view" onClick={() => onView(student)}>
           <Eye size={14} />
           <span>View</span>
         </button>
@@ -311,8 +213,8 @@ const StudentCard = ({ student, onEdit, onDelete, onPrint, onView }) => {
 };
 
 /* ─────────────── Modal ─────────────── */
-const StudentModal = ({ student, onClose, onSave }) => {
-  const isEdit = !!student?.id_client;
+const StudentModal = ({ student, onClose, onSave, isSaving }) => {
+  const isEdit = !!student?.id;
   const [form, setForm] = useState(isEdit ? { ...student } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
 
@@ -320,19 +222,20 @@ const StudentModal = ({ student, onClose, onSave }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.last_name.trim()) e.last_name = 'Required';
-    if (!form.first_name.trim()) e.first_name = 'Required';
-    if (!form.cin.trim()) e.cin = 'Required';
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Invalid email';
-    if (!form.phone.trim()) e.phone = 'Required';
-    if (!form.age || form.age < 16) e.age = 'Age ≥ 16';
+    if (!form.last_name?.trim()) e.last_name = 'Last name is required';
+    if (!form.first_name?.trim()) e.first_name = 'First name is required';
+    if (!form.cin?.trim()) e.cin = 'CIN is required';
+    if (!form.email?.trim() || !/\S+@\S+\.\S+/.test(form.email))
+      e.email = 'Valid email is required';
+    if (!form.phone?.trim()) e.phone = 'Phone number is required';
+    if (!form.age || form.age < 16) e.age = 'Age must be at least 16';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ ...form, id_client: form.id_client || Date.now() });
+    onSave(form);
   };
 
   return (
@@ -345,7 +248,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
             </div>
             <div>
               <h2>{isEdit ? 'Edit Student' : 'New Student'}</h2>
-              <p>{isEdit ? `ID: ${form.id_client}` : 'Fill in the information'}</p>
+              <p>{isEdit ? `ID: ${form.id}` : 'Fill in the student information'}</p>
             </div>
           </div>
           <button onClick={onClose} className="close-btn">
@@ -361,7 +264,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
             </div>
             <div className="form-row">
               <div className="form-field">
-                <label>First Name</label>
+                <label>First Name *</label>
                 <input
                   type="text"
                   value={form.first_name}
@@ -371,7 +274,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 {errors.first_name && <span className="error-message">{errors.first_name}</span>}
               </div>
               <div className="form-field">
-                <label>Last Name</label>
+                <label>Last Name *</label>
                 <input
                   type="text"
                   value={form.last_name}
@@ -381,7 +284,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 {errors.last_name && <span className="error-message">{errors.last_name}</span>}
               </div>
               <div className="form-field">
-                <label>ID Number (CIN)</label>
+                <label>ID Number (CIN) *</label>
                 <input
                   type="text"
                   value={form.cin}
@@ -391,7 +294,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 {errors.cin && <span className="error-message">{errors.cin}</span>}
               </div>
               <div className="form-field">
-                <label>Age</label>
+                <label>Age *</label>
                 <input
                   type="number"
                   value={form.age}
@@ -401,7 +304,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 {errors.age && <span className="error-message">{errors.age}</span>}
               </div>
               <div className="form-field">
-                <label>Email</label>
+                <label>Email *</label>
                 <input
                   type="email"
                   value={form.email}
@@ -411,7 +314,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 {errors.email && <span className="error-message">{errors.email}</span>}
               </div>
               <div className="form-field">
-                <label>Phone</label>
+                <label>Phone *</label>
                 <input
                   type="text"
                   value={form.phone}
@@ -434,7 +337,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
           <div className="form-section">
             <div className="section-header">
               <Car size={14} />
-              <h4>Training</h4>
+              <h4>Training Information</h4>
             </div>
             <div className="form-row">
               <div className="form-field">
@@ -442,7 +345,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                 <select value={form.type} onChange={(e) => set('type', e.target.value)}>
                   {CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      Category {c}
                     </option>
                   ))}
                 </select>
@@ -461,6 +364,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                   type="text"
                   value={form.parent_name}
                   onChange={(e) => set('parent_name', e.target.value)}
+                  placeholder="Parent/Guardian name"
                 />
               </div>
               <div className="form-field">
@@ -469,6 +373,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                   type="text"
                   value={form.emergency_contact}
                   onChange={(e) => set('emergency_contact', e.target.value)}
+                  placeholder="Emergency phone number"
                 />
               </div>
             </div>
@@ -477,7 +382,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
           <div className="form-section">
             <div className="section-header">
               <CreditCard size={14} />
-              <h4>Payment</h4>
+              <h4>Payment Information</h4>
             </div>
             <div className="form-row">
               <div className="form-field">
@@ -486,6 +391,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
                   type="number"
                   value={form.total_price}
                   onChange={(e) => set('total_price', e.target.value)}
+                  placeholder="0"
                 />
               </div>
               <div className="form-field">
@@ -494,10 +400,11 @@ const StudentModal = ({ student, onClose, onSave }) => {
                   type="number"
                   value={form.initial_payment}
                   onChange={(e) => set('initial_payment', e.target.value)}
+                  placeholder="0"
                 />
               </div>
               <div className="form-field">
-                <label>Status</label>
+                <label>Payment Status</label>
                 <select
                   value={form.payment_status}
                   onChange={(e) => set('payment_status', e.target.value)}
@@ -517,7 +424,8 @@ const StudentModal = ({ student, onClose, onSave }) => {
           <button onClick={onClose} className="btn-cancel">
             Cancel
           </button>
-          <button onClick={handleSave} className="btn-save">
+          <button onClick={handleSave} className="btn-save" disabled={isSaving}>
+            {isSaving ? <Loader size={16} className="spinner" /> : null}
             {isEdit ? 'Save Changes' : 'Add Student'}
           </button>
         </div>
@@ -529,7 +437,7 @@ const StudentModal = ({ student, onClose, onSave }) => {
 /* ─────────────── Detail Drawer ─────────────── */
 const StudentDetail = ({ student, onClose, onEdit, onDelete, onPrint }) => {
   if (!student) return null;
-  const paid = Number(student.initial_payment);
+  const paid = Number(student.initial_payment || 0);
   const total = Number(student.total_price) || 1;
   const pct = Math.min(100, Math.round((paid / total) * 100));
 
@@ -575,7 +483,7 @@ const StudentDetail = ({ student, onClose, onEdit, onDelete, onPrint }) => {
               <div className="info-row">
                 <MapPin size={14} />
                 <span className="info-label">Address</span>
-                <span className="info-value">{student.address}</span>
+                <span className="info-value">{student.address || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -602,6 +510,13 @@ const StudentDetail = ({ student, onClose, onEdit, onDelete, onPrint }) => {
                   <User size={14} />
                   <span className="info-label">Parent Name</span>
                   <span className="info-value">{student.parent_name}</span>
+                </div>
+              )}
+              {student.emergency_contact && (
+                <div className="info-row">
+                  <Phone size={14} />
+                  <span className="info-label">Emergency Contact</span>
+                  <span className="info-value">{student.emergency_contact}</span>
                 </div>
               )}
             </div>
@@ -651,7 +566,7 @@ const StudentDetail = ({ student, onClose, onEdit, onDelete, onPrint }) => {
 };
 
 /* ─────────────── Delete Confirm ─────────────── */
-const DeleteConfirm = ({ student, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ student, onConfirm, onCancel, isDeleting }) => (
   <div className="modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -663,14 +578,15 @@ const DeleteConfirm = ({ student, onConfirm, onCancel }) => (
         <strong>
           {student?.first_name} {student?.last_name}
         </strong>
-        ? This action cannot be undone.
+        ? This action cannot be undone and will affect all associated sessions and payments.
       </p>
       <div className="delete-actions">
         <button onClick={onCancel} className="btn-cancel">
           Cancel
         </button>
-        <button onClick={onConfirm} className="btn-delete">
-          Delete
+        <button onClick={onConfirm} className="btn-delete" disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}
+          Delete Student
         </button>
       </div>
     </div>
@@ -696,12 +612,16 @@ const KpiCard = ({ icon, label, value, trend, trendValue }) => (
 
 /* ─────────────── Main Component ─────────────── */
 const Students = () => {
-  const [students, setStudents] = useState(MOCK_STUDENTS);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
-  const [sortField, setSortField] = useState('id_client');
-  const [sortDir, setSortDir] = useState('asc');
+  const [sortField, setSortField] = useState('id');
+  const [sortDir, setSortDir] = useState('desc');
   const [modal, setModal] = useState(null);
   const [editStudent, setEditStudent] = useState(null);
   const [detailStudent, setDetailStudent] = useState(null);
@@ -716,27 +636,69 @@ const Students = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Fetch students from API
+  const fetchStudents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/students');
+      if (response.data.success) {
+        setStudents(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch students:', error);
+      showToast('Failed to load students', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  // Filter and sort students
   const filtered = useMemo(() => {
     let s = [...students];
+
     if (search) {
       const q = search.toLowerCase();
       s = s.filter((x) =>
         `${x.first_name} ${x.last_name} ${x.cin} ${x.email} ${x.phone}`.toLowerCase().includes(q),
       );
     }
+
     if (filterCategory !== 'All') s = s.filter((x) => x.type === filterCategory);
     if (filterStatus !== 'All') s = s.filter((x) => x.payment_status === filterStatus);
+
     s.sort((a, b) => {
-      const va = a[sortField],
-        vb = b[sortField];
-      return sortDir === 'asc' ? (va > vb ? 1 : -1) : va < vb ? 1 : -1;
+      let va = a[sortField];
+      let vb = b[sortField];
+
+      // Handle numeric fields
+      if (
+        sortField === 'id' ||
+        sortField === 'age' ||
+        sortField === 'initial_payment' ||
+        sortField === 'total_price'
+      ) {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      }
+
+      if (sortDir === 'asc') {
+        return va > vb ? 1 : -1;
+      } else {
+        return va < vb ? 1 : -1;
+      }
     });
+
     return s;
   }, [students, search, filterCategory, filterStatus, sortField, sortDir]);
 
   const toggleSort = (field) => {
-    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
       setSortField(field);
       setSortDir('asc');
     }
@@ -751,52 +713,157 @@ const Students = () => {
     );
   };
 
-  const handleSave = (data) => {
-    const isNew = !data.id_client || !students.find((s) => s.id_client === data.id_client);
+  // Create or update student
+  const handleSave = async (data) => {
+    setIsSaving(true);
+    const isNew = !data.id;
 
-    if (isNew) {
-      const newStudent = { ...data, id_client: Date.now() };
-      setStudents((s) => [...s, newStudent]);
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/students', data);
+      } else {
+        response = await axios.put(`/students/${data.id}`, data);
+      }
 
-      // Add notification for new student
-      addNotification(
-        'New Student Registered',
-        `${data.first_name} ${data.last_name} has registered for Category ${data.type}`,
-        'student',
-      );
+      if (response.data.success) {
+        await fetchStudents();
 
-      showToast('Student added successfully');
-    } else {
-      setStudents((s) => s.map((x) => (x.id_client === data.id_client ? data : x)));
-      showToast('Student updated successfully');
+        if (isNew) {
+          addNotification(
+            'New Student Registered',
+            `${data.first_name} ${data.last_name} has registered for Category ${data.type}`,
+            'student',
+          );
+          showToast('Student added successfully');
+        } else {
+          showToast('Student updated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save student:', error);
+      showToast(error.response?.data?.message || 'Failed to save student', 'error');
+    } finally {
+      setIsSaving(false);
+      setModal(null);
+      setEditStudent(null);
     }
-
-    setModal(null);
-    setEditStudent(null);
   };
 
-  const handleDelete = (id) => {
-    const deletedStudent = students.find((s) => s.id_client === id);
-    setStudents((s) => s.filter((x) => x.id_client !== id));
-    setDeleteTarget(null);
-    setDetailStudent(null);
+  // Delete student
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
 
-    // Add notification for deleted student
-    if (deletedStudent) {
-      addNotification(
-        'Student Deleted',
-        `${deletedStudent.first_name} ${deletedStudent.last_name} has been removed from the system`,
-        'system',
-      );
+    try {
+      const response = await axios.delete(`/students/${id}`);
+
+      if (response.data.success) {
+        const deletedStudent = students.find((s) => s.id === id);
+        await fetchStudents();
+
+        if (deletedStudent) {
+          addNotification(
+            'Student Deleted',
+            `${deletedStudent.first_name} ${deletedStudent.last_name} has been removed from the system`,
+            'system',
+          );
+        }
+
+        showToast('Student deleted successfully', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete student:', error);
+      showToast(error.response?.data?.message || 'Failed to delete student', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setDetailStudent(null);
     }
-
-    showToast('Student deleted', 'error');
   };
 
-  const handlePrintReceipt = (student) => {
-    showToast(`Printing receipt for ${student.first_name} ${student.last_name}`, 'success');
+  // Export Handlers
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterCategory !== 'All') params.append('category', filterCategory);
+      if (filterStatus !== 'All') params.append('payment_status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/students/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `students_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export Excel file', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterCategory !== 'All') params.append('category', filterCategory);
+      if (filterStatus !== 'All') params.append('payment_status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/students/export/pdf?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `students_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export PDF file', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrintReceipt = async (student) => {
+    try {
+      const response = await axios.get(`/students/${student.id}/receipt`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+
+      showToast(`Receipt for ${student.first_name} ${student.last_name} is ready`);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showToast('Failed to generate receipt', 'error');
+    }
+  };
+
+  // Calculate KPIs
   const total = students.length;
   const completed = students.filter((s) => s.payment_status === 'Complete').length;
   const revenue = students.reduce((acc, s) => acc + Number(s.initial_payment || 0), 0);
@@ -816,6 +883,18 @@ const Students = () => {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="students-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading students...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="students-page">
@@ -905,12 +984,14 @@ const Students = () => {
           ))}
         </select>
 
-        <button className="btn-export" onClick={() => showToast('Excel export coming soon')}>
-          <Download size={15} /> Excel
+        <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
+          Excel
         </button>
 
-        <button className="btn-export" onClick={() => showToast('PDF export coming soon')}>
-          <FileText size={15} /> PDF
+        <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />}
+          PDF
         </button>
 
         <button
@@ -934,11 +1015,12 @@ const Students = () => {
             >
               <Search size={48} />
               <div>No students found</div>
+              <p>Try adjusting your filters or add a new student</p>
             </div>
           ) : (
             filtered.map((student) => (
               <StudentCard
-                key={student.id_client}
+                key={student.id}
                 student={student}
                 onEdit={(s) => {
                   setEditStudent(s);
@@ -952,7 +1034,6 @@ const Students = () => {
           )}
         </div>
       ) : (
-        /* Table View */
         <div className="table-container">
           <div className="table-header">
             <h3>
@@ -968,40 +1049,22 @@ const Students = () => {
               <thead>
                 <tr>
                   <th onClick={() => toggleSort('last_name')}>
-                    Student{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="last_name" />
-                    </span>
+                    Student <SortIcon field="last_name" />
                   </th>
                   <th onClick={() => toggleSort('cin')}>
-                    ID Number{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="cin" />
-                    </span>
+                    ID Number <SortIcon field="cin" />
                   </th>
                   <th onClick={() => toggleSort('type')}>
-                    Category{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="type" />
-                    </span>
+                    Category <SortIcon field="type" />
                   </th>
                   <th onClick={() => toggleSort('phone')}>
-                    Phone{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="phone" />
-                    </span>
+                    Phone <SortIcon field="phone" />
                   </th>
                   <th onClick={() => toggleSort('payment_status')}>
-                    Payment{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="payment_status" />
-                    </span>
+                    Payment <SortIcon field="payment_status" />
                   </th>
                   <th onClick={() => toggleSort('registration_date')}>
-                    Registration{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="registration_date" />
-                    </span>
+                    Registration <SortIcon field="registration_date" />
                   </th>
                   <th>Actions</th>
                 </tr>
@@ -1016,7 +1079,7 @@ const Students = () => {
                   </tr>
                 ) : (
                   filtered.map((student) => (
-                    <tr key={student.id_client} onClick={() => setDetailStudent(student)}>
+                    <tr key={student.id} onClick={() => setDetailStudent(student)}>
                       <td>
                         <div className="student-info">
                           <Avatar last_name={student.last_name} first_name={student.first_name} />
@@ -1099,6 +1162,7 @@ const Students = () => {
             setEditStudent(null);
           }}
           onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
 
@@ -1119,8 +1183,9 @@ const Students = () => {
       {deleteTarget && (
         <DeleteConfirm
           student={deleteTarget}
-          onConfirm={() => handleDelete(deleteTarget.id_client)}
+          onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
     </div>

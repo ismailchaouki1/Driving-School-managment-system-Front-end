@@ -2,62 +2,93 @@ import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import '../Styles/SignUp.scss';
 import gsap from 'gsap';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router-dom';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
+import axios from 'axios';
+
+const API_URL = 'http://localhost:8000/api';
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const navigate = useNavigate();
 
-  // 🔥 Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirm: '',
+    password_confirmation: '',
   });
 
-  // 🔥 Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: '' }));
+    }
   };
-  // handle scroll
-  const handleScroll = () => {
-    // 1. Get the existing instance
-    const smoother = ScrollSmoother.get();
 
-    if (smoother) {
-      // 2. Tell GSAP to scroll to the top (0) smoothly
-      smoother.scrollTo(0, true);
-    }
-  };
-  // 🔥 Handle submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Simple validation
-    if (!formData.name || !formData.email || !formData.password || !formData.confirm) {
-      alert('Please fill in all fields');
-      return;
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const response = await axios.post(`${API_URL}/signup`, {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        password_confirmation: formData.password_confirmation,
+      });
+
+      if (response.data.success) {
+        // Auto-login after signup
+        localStorage.setItem('token', response.data.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+
+        // Set default axios header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
+
+        // Redirect to dashboard
+        navigate('/system/dashboard');
+      }
+    } catch (err) {
+      if (err.response?.data?.errors) {
+        const fieldErrors = {};
+        const apiErrors = err.response.data.errors;
+
+        if (apiErrors.name) fieldErrors.name = apiErrors.name[0];
+        if (apiErrors.email) fieldErrors.email = apiErrors.email[0];
+        if (apiErrors.password) fieldErrors.password = apiErrors.password[0];
+
+        setErrors(fieldErrors);
+      } else if (err.response?.data?.message) {
+        setErrors({ general: err.response.data.message });
+      } else {
+        setErrors({ general: 'Sign up failed. Please try again.' });
+      }
+    } finally {
+      setIsLoading(false);
     }
-    if (formData.password !== formData.confirm) {
-      alert('Passwords do not match');
-      return;
-    }
-    console.log('SignUp Data:', formData);
   };
 
   const badgeRef = useRef(null);
   const titleRef = useRef(null);
   const subtitleRef = useRef(null);
 
-  // 🔥 GSAP Animations
   useEffect(() => {
-    const tl = gsap.timeline();
+    // Check if user is already logged in
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/system/dashboard');
+    }
 
+    const tl = gsap.timeline();
     tl.from(badgeRef.current, {
       y: -20,
       opacity: 0,
@@ -85,12 +116,18 @@ export default function SignUp() {
         '-=0.4',
       );
     return () => tl.revert();
-  }, []);
+  }, [navigate]);
+
+  const handleScroll = () => {
+    const smoother = ScrollSmoother.get();
+    if (smoother) {
+      smoother.scrollTo(0, true);
+    }
+  };
 
   return (
     <div className="signup" id="smooth-wrapper">
       <div className="signup__box" id="smooth-content">
-        {/* Header */}
         <div className="signup__header">
           <span className="signup__badge" ref={badgeRef}>
             Join Us
@@ -99,9 +136,16 @@ export default function SignUp() {
           <p ref={subtitleRef}>Sign up and start managing your finances securely</p>
         </div>
 
-        {/* Form */}
+        {errors.general && (
+          <div
+            className="signup__error"
+            style={{ color: '#ef4444', marginBottom: '1rem', textAlign: 'center' }}
+          >
+            {errors.general}
+          </div>
+        )}
+
         <form className="signup__form" onSubmit={handleSubmit}>
-          {/* Name */}
           <div className="signup__field">
             <label>Name</label>
             <input
@@ -110,10 +154,14 @@ export default function SignUp() {
               placeholder="Full Name"
               value={formData.name}
               onChange={handleChange}
+              className={errors.name ? 'error' : ''}
+              required
             />
+            {errors.name && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>{errors.name}</span>
+            )}
           </div>
 
-          {/* Email */}
           <div className="signup__field">
             <label>Email</label>
             <input
@@ -122,10 +170,14 @@ export default function SignUp() {
               placeholder="Your Email"
               value={formData.email}
               onChange={handleChange}
+              className={errors.email ? 'error' : ''}
+              required
             />
+            {errors.email && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>{errors.email}</span>
+            )}
           </div>
 
-          {/* Password */}
           <div className="signup__field">
             <label>Password</label>
             <div className="signup__input">
@@ -135,23 +187,28 @@ export default function SignUp() {
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleChange}
+                className={errors.password ? 'error' : ''}
+                required
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {errors.password && (
+              <span style={{ color: '#ef4444', fontSize: '12px' }}>{errors.password}</span>
+            )}
           </div>
 
-          {/* Confirm Password */}
           <div className="signup__field">
             <label>Confirm Password</label>
             <div className="signup__input">
               <input
                 type={showConfirm ? 'text' : 'password'}
-                name="confirm"
+                name="password_confirmation"
                 placeholder="Confirm Password"
-                value={formData.confirm}
+                value={formData.password_confirmation}
                 onChange={handleChange}
+                required
               />
               <button type="button" onClick={() => setShowConfirm(!showConfirm)}>
                 {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -159,25 +216,14 @@ export default function SignUp() {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <button className="signup__submit" type="submit">
-            Sign Up <span>›</span>
+          <button className="signup__submit" type="submit" disabled={isLoading}>
+            {isLoading ? 'Creating account...' : 'Sign Up'} <span>›</span>
           </button>
 
-          {/* Divider */}
           <div className="signup__divider">
             <span>Or sign up with</span>
           </div>
 
-          {/* Social */}
-          <div className="signup__social">
-            <button type="button" className="signup__social-btn">
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
-              Google
-            </button>
-          </div>
-
-          {/* Footer */}
           <p className="signup__footer">
             Already have an account?
             <span>
