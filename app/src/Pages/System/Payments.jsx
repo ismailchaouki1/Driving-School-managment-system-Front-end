@@ -1,5 +1,5 @@
 // Pages/System/Payments.jsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -42,165 +42,18 @@ import {
   Mail,
   Phone,
   MapPin,
+  Loader,
+  Car,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Payments.scss';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const PAYMENT_STATUSES = ['Paid', 'Partial', 'Pending', 'Overdue'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Card', 'Cheque', 'Online'];
 const PAYMENT_TYPES = ['Registration', 'Session', 'Exam', 'Other'];
 const CATEGORIES = ['B', 'A', 'A1', 'C', 'D', 'BE'];
-
-const MOCK_PAYMENTS = [
-  {
-    id: 1,
-    reference: 'PAY-2025-001',
-    student_name: 'Youssef Alami',
-    student_cin: 'AB123456',
-    student_phone: '0612345678',
-    student_email: 'youssef.alami@gmail.com',
-    category: 'B',
-    amount_total: 6000,
-    amount_paid: 3000,
-    amount_remaining: 3000,
-    status: 'Partial',
-    method: 'Cash',
-    type: 'Registration',
-    date: '2024-11-10',
-    due_date: '2025-03-10',
-    instructor: 'Mohammed Rami',
-    notes: 'First installment received',
-    receipt_number: 'RCP-001',
-    payment_reference: null,
-  },
-  {
-    id: 2,
-    reference: 'PAY-2025-002',
-    student_name: 'Fatima Benali',
-    student_cin: 'CD789012',
-    student_phone: '0698765432',
-    student_email: 'fatima.benali@gmail.com',
-    category: 'B',
-    amount_total: 6000,
-    amount_paid: 6000,
-    amount_remaining: 0,
-    status: 'Paid',
-    method: 'Bank Transfer',
-    type: 'Registration',
-    date: '2024-10-05',
-    due_date: '2024-10-05',
-    instructor: 'Sara Filali',
-    notes: 'Full payment received',
-    receipt_number: 'RCP-002',
-    payment_reference: 'TRF-123456',
-  },
-  {
-    id: 3,
-    reference: 'PAY-2025-003',
-    student_name: 'Karim Cherkaoui',
-    student_cin: 'EF345678',
-    student_phone: '0655443322',
-    student_email: 'karim.ch@outlook.com',
-    category: 'C',
-    amount_total: 9000,
-    amount_paid: 0,
-    amount_remaining: 9000,
-    status: 'Overdue',
-    method: 'Cash',
-    type: 'Registration',
-    date: '2025-01-18',
-    due_date: '2025-02-18',
-    instructor: 'Hassan Boulal',
-    notes: 'Awaiting payment confirmation',
-    receipt_number: null,
-    payment_reference: null,
-  },
-  {
-    id: 4,
-    reference: 'PAY-2025-004',
-    student_name: 'Nadia Tazi',
-    student_cin: 'GH901234',
-    student_phone: '0611223344',
-    student_email: 'nadia.tazi@gmail.com',
-    category: 'A',
-    amount_total: 4500,
-    amount_paid: 4500,
-    amount_remaining: 0,
-    status: 'Paid',
-    method: 'Card',
-    type: 'Registration',
-    date: '2024-12-22',
-    due_date: '2024-12-22',
-    instructor: 'Youssef Kadiri',
-    notes: '',
-    receipt_number: 'RCP-003',
-    payment_reference: 'CARD-XXXX-1234',
-  },
-  {
-    id: 5,
-    reference: 'PAY-2025-005',
-    student_name: 'Hassan Ouazzani',
-    student_cin: 'IJ567890',
-    student_phone: '0677889900',
-    student_email: 'hassan.o@gmail.com',
-    category: 'BE',
-    amount_total: 7500,
-    amount_paid: 2000,
-    amount_remaining: 5500,
-    status: 'Partial',
-    method: 'Cheque',
-    type: 'Registration',
-    date: '2025-02-03',
-    due_date: '2025-05-03',
-    instructor: 'Fatima Zahra',
-    notes: 'Cheque #1234',
-    receipt_number: 'RCP-004',
-    payment_reference: 'CHQ-1234',
-  },
-  {
-    id: 6,
-    reference: 'PAY-2025-006',
-    student_name: 'Imane Bouazza',
-    student_cin: 'KL112233',
-    student_phone: '0677889911',
-    student_email: 'imane.b@outlook.com',
-    category: 'B',
-    amount_total: 450,
-    amount_paid: 450,
-    amount_remaining: 0,
-    status: 'Paid',
-    method: 'Cash',
-    type: 'Exam',
-    date: '2025-03-01',
-    due_date: '2025-03-01',
-    instructor: 'Mohammed Rami',
-    notes: 'Code exam fee',
-    receipt_number: 'RCP-005',
-    payment_reference: null,
-  },
-  {
-    id: 7,
-    reference: 'PAY-2025-007',
-    student_name: 'Omar Mansouri',
-    student_cin: 'MN445566',
-    student_phone: '0612345699',
-    student_email: 'omar.mansouri@gmail.com',
-    category: 'B',
-    amount_total: 6200,
-    amount_paid: 3100,
-    amount_remaining: 3100,
-    status: 'Pending',
-    method: 'Cash',
-    type: 'Registration',
-    date: '2025-03-10',
-    due_date: '2025-06-10',
-    instructor: 'Sara Filali',
-    notes: '',
-    receipt_number: null,
-    payment_reference: null,
-  },
-];
 
 const EMPTY_FORM = {
   reference: `PAY-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 900) + 100)}`,
@@ -260,11 +113,13 @@ const SortIcon = ({ field, sortField, sortDir }) => {
 };
 
 /* ── Payment Card (for card view) ── */
-const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrint }) => {
-  const percentPaid = Math.min(
-    100,
-    Math.round((payment.amount_paid / (payment.amount_total || 1)) * 100),
-  );
+const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
+  const amountTotal = Number(payment.amount_total) || 0;
+  const amountPaid = Number(payment.amount_paid) || 0;
+  const amountRemaining = Number(payment.amount_remaining) || 0;
+
+  const percentPaid =
+    amountTotal > 0 ? Math.min(100, Math.round((amountPaid / amountTotal) * 100)) : 0;
   const isOverdue = payment.status === 'Overdue';
   const daysOverdue =
     isOverdue && payment.due_date
@@ -276,41 +131,59 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrint }) => {
       <div className="payment-card-header">
         <div className="payment-ref">
           <ReceiptText size={16} />
-          <span>{payment.reference}</span>
+          <span>{payment.reference || 'N/A'}</span>
         </div>
         <StatusBadge status={payment.status} />
+      </div>
+
+      {/* Payment Linked Items */}
+      <div className="payment-linked-items">
+        {payment.session_id && (
+          <div className="linked-item">
+            <Calendar size={12} />
+            <span>Session: {payment.session_date || payment.session_id}</span>
+          </div>
+        )}
+        {payment.vehicle_id && (
+          <div className="linked-item">
+            <Car size={12} />
+            <span>Vehicle: {payment.vehicle_plate || payment.vehicle_id}</span>
+          </div>
+        )}
       </div>
 
       <div className="payment-card-body">
         <div className="payment-student">
           <div className="student-avatar">
             {payment.student_name
-              .split(' ')
-              .map((w) => w[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase()}
+              ? payment.student_name
+                  .split(' ')
+                  .map((w) => w[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase()
+              : '??'}
           </div>
           <div className="student-info">
-            <h4>{payment.student_name}</h4>
-            <p>CIN: {payment.student_cin}</p>
-            <span className="category-badge">Cat. {payment.category}</span>
+            <h4>{payment.student_name || 'N/A'}</h4>
+            <p>CIN: {payment.student_cin || 'N/A'}</p>
+            <span className="category-badge">Cat. {payment.category || 'N/A'}</span>
           </div>
         </div>
 
         <div className="payment-amounts">
           <div className="amount-item total">
             <span>Total</span>
-            <strong>{payment.amount_total.toLocaleString()} MAD</strong>
+            <strong>{amountTotal.toLocaleString()} DH</strong>
           </div>
           <div className="amount-item paid">
             <span>Paid</span>
-            <strong className="text-success">{payment.amount_paid.toLocaleString()} MAD</strong>
+            <strong className="text-success">{amountPaid.toLocaleString()} DH</strong>
           </div>
           <div className="amount-item remaining">
             <span>Remaining</span>
-            <strong className={payment.amount_remaining > 0 ? 'text-danger' : 'text-success'}>
-              {payment.amount_remaining.toLocaleString()} MAD
+            <strong className={amountRemaining > 0 ? 'text-danger' : 'text-success'}>
+              {amountRemaining.toLocaleString()} DH
             </strong>
           </div>
         </div>
@@ -325,11 +198,11 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrint }) => {
         <div className="payment-meta">
           <div className="meta-item">
             <MethodIcon method={payment.method} />
-            <span>{payment.method}</span>
+            <span>{payment.method || 'N/A'}</span>
           </div>
           <div className="meta-item">
             <Calendar size={12} />
-            <span>{payment.date}</span>
+            <span>{payment.date || 'N/A'}</span>
           </div>
           {payment.due_date && (
             <div className={`meta-item ${isOverdue ? 'overdue' : ''}`}>
@@ -352,7 +225,11 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrint }) => {
         <button className="action-btn view" onClick={() => onView(payment)} title="View Details">
           <Eye size={14} />
         </button>
-        <button className="action-btn print" onClick={() => onPrint(payment)} title="Print Receipt">
+        <button
+          className="action-btn print"
+          onClick={() => onPrintReceipt(payment)}
+          title="Print Receipt"
+        >
           <Printer size={14} />
         </button>
         <button className="action-btn edit" onClick={() => onEdit(payment)} title="Edit Payment">
@@ -371,18 +248,16 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrint }) => {
 };
 
 /* ── Payment Modal ── */
-const PaymentModal = ({ payment, onClose, onSave }) => {
+const PaymentModal = ({ payment, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState(payment ? { ...payment } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
 
   const set = (k, v) => {
     setForm((f) => {
       const updated = { ...f, [k]: v };
-      // Auto-calculate remaining
       const total = parseFloat(updated.amount_total) || 0;
       const paid = parseFloat(updated.amount_paid) || 0;
       updated.amount_remaining = Math.max(0, total - paid);
-      // Auto-set status
       if (paid === 0) updated.status = 'Pending';
       else if (paid >= total) updated.status = 'Paid';
       else updated.status = 'Partial';
@@ -392,8 +267,8 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.student_name.trim()) e.student_name = 'Student name is required';
-    if (!form.student_cin.trim()) e.student_cin = 'CIN is required';
+    if (!form.student_name?.trim()) e.student_name = 'Student name is required';
+    if (!form.student_cin?.trim()) e.student_cin = 'CIN is required';
     if (!form.amount_total || parseFloat(form.amount_total) <= 0)
       e.amount_total = 'Enter a valid total amount';
     if (parseFloat(form.amount_paid) > parseFloat(form.amount_total))
@@ -433,25 +308,24 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
         </div>
 
         <div className="modal-body">
-          {/* Progress preview */}
           <div className="payment-preview-card">
             <div className="preview-amounts">
               <div className="preview-item">
                 <span className="preview-label">Total</span>
                 <span className="preview-value">
-                  {parseFloat(form.amount_total || 0).toLocaleString()} MAD
+                  {parseFloat(form.amount_total || 0).toLocaleString()} DH
                 </span>
               </div>
               <div className="preview-item">
                 <span className="preview-label">Paid</span>
                 <span className="preview-value paid">
-                  {parseFloat(form.amount_paid || 0).toLocaleString()} MAD
+                  {parseFloat(form.amount_paid || 0).toLocaleString()} DH
                 </span>
               </div>
               <div className="preview-item">
                 <span className="preview-label">Remaining</span>
                 <span className="preview-value remaining">
-                  {parseFloat(form.amount_remaining || 0).toLocaleString()} MAD
+                  {parseFloat(form.amount_remaining || 0).toLocaleString()} DH
                 </span>
               </div>
             </div>
@@ -464,7 +338,6 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
             </div>
           </div>
 
-          {/* Student Info */}
           <div className="form-section">
             <h4 className="section-title">
               <User size={14} /> Student Information
@@ -536,14 +409,13 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
             </div>
           </div>
 
-          {/* Payment Info */}
           <div className="form-section">
             <h4 className="section-title">
               <CreditCard size={14} /> Payment Details
             </h4>
             <div className="form-row">
               <div className="form-field">
-                <label>Total Amount (MAD) *</label>
+                <label>Total Amount (DH) *</label>
                 <input
                   type="number"
                   placeholder="0.00"
@@ -554,7 +426,7 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
                 {errors.amount_total && <span className="error-msg">{errors.amount_total}</span>}
               </div>
               <div className="form-field">
-                <label>Amount Paid (MAD)</label>
+                <label>Amount Paid (DH)</label>
                 <input
                   type="number"
                   placeholder="0.00"
@@ -632,8 +504,8 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <CheckCircle size={15} />
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <CheckCircle size={15} />}
             {payment ? 'Save Changes' : 'Create Payment'}
           </button>
         </div>
@@ -643,11 +515,12 @@ const PaymentModal = ({ payment, onClose, onSave }) => {
 };
 
 /* ── Payment Detail Modal ── */
-const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendReceipt }) => {
-  const percentPaid = Math.min(
-    100,
-    Math.round((payment.amount_paid / (payment.amount_total || 1)) * 100),
-  );
+const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onSendReceipt }) => {
+  const amountTotal = Number(payment.amount_total) || 0;
+  const amountPaid = Number(payment.amount_paid) || 0;
+  const amountRemaining = Number(payment.amount_remaining) || 0;
+  const percentPaid =
+    amountTotal > 0 ? Math.min(100, Math.round((amountPaid / amountTotal) * 100)) : 0;
   const isOverdue = payment.status === 'Overdue';
   const daysOverdue =
     isOverdue && payment.due_date
@@ -666,24 +539,22 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
             <X size={20} />
           </button>
         </div>
-
         <div className="detail-body">
-          {/* Amount Summary */}
           <div className="amount-summary">
             <div className="amount-main">
               <span className="amount-label">Total Amount</span>
               <span className="amount-value">
-                {payment.amount_total.toLocaleString()} <small>MAD</small>
+                {amountTotal.toLocaleString()} <small>DH</small>
               </span>
             </div>
             <div className="amount-breakdown">
               <div className="breakdown-item green">
                 <span>Paid</span>
-                <strong>{payment.amount_paid.toLocaleString()} MAD</strong>
+                <strong>{amountPaid.toLocaleString()} DH</strong>
               </div>
               <div className="breakdown-item red">
                 <span>Remaining</span>
-                <strong>{payment.amount_remaining.toLocaleString()} MAD</strong>
+                <strong>{amountRemaining.toLocaleString()} DH</strong>
               </div>
             </div>
             <div className="detail-progress-bar">
@@ -694,7 +565,6 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
               <span className="pct-text">{percentPaid}% completed</span>
             </div>
           </div>
-
           <div className="detail-grid">
             <div className="detail-section">
               <h4>
@@ -735,7 +605,6 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
                 </div>
               </div>
             </div>
-
             <div className="detail-section">
               <h4>
                 <CreditCard size={13} /> Transaction Details
@@ -779,7 +648,6 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
               </div>
             </div>
           </div>
-
           {payment.notes && (
             <div className="detail-notes">
               <h4>Notes</h4>
@@ -787,9 +655,8 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
             </div>
           )}
         </div>
-
         <div className="modal-footer">
-          <button className="btn-print" onClick={() => onPrint(payment)}>
+          <button className="btn-print" onClick={() => onPrintReceipt(payment)}>
             <Printer size={14} /> Print Receipt
           </button>
           <button className="btn-email" onClick={() => onSendReceipt(payment)}>
@@ -810,7 +677,7 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrint, onSendRece
 };
 
 /* ── Delete Confirm ── */
-const DeleteConfirm = ({ payment, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ payment, onConfirm, onCancel, isDeleting }) => (
   <div className="modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -825,8 +692,8 @@ const DeleteConfirm = ({ payment, onConfirm, onCancel }) => (
         <button className="btn-cancel" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn-delete" onClick={onConfirm}>
-          Delete Payment
+        <button className="btn-delete" onClick={onConfirm} disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}Delete Payment
         </button>
       </div>
     </div>
@@ -861,7 +728,11 @@ const KpiCard = ({ icon: Icon, label, value, trend, trendValue, trendUp }) => (
 
 /* ─────────────── Main Component ─────────────── */
 const Payments = () => {
-  const [payments, setPayments] = useState(MOCK_PAYMENTS);
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [filterMethod, setFilterMethod] = useState('All');
@@ -882,44 +753,103 @@ const Payments = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Fetch payments from API
+  const fetchPayments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/payments');
+      console.log('Payments response:', response.data);
+
+      if (response.data.success) {
+        // Ensure amounts are numbers
+        const paymentsData = response.data.data.map((payment) => ({
+          ...payment,
+          amount_total: Number(payment.amount_total) || 0,
+          amount_paid: Number(payment.amount_paid) || 0,
+          amount_remaining: Number(payment.amount_remaining) || 0,
+        }));
+        setPayments(paymentsData);
+      } else {
+        setPayments([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch payments:', error);
+      showToast('Failed to load payments', 'error');
+      setPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
   /* ── KPIs ── */
   const kpis = useMemo(() => {
-    const totalRevenue = payments.reduce((s, p) => s + p.amount_paid, 0);
-    const totalPending = payments.reduce((s, p) => s + p.amount_remaining, 0);
+    if (!payments.length) {
+      return {
+        total: 0,
+        totalRevenue: 0,
+        totalPending: 0,
+        paid: 0,
+        overdue: 0,
+        partial: 0,
+        collectionRate: 0,
+      };
+    }
+
+    const totalRevenue = payments.reduce(
+      (sum, payment) => sum + (Number(payment.amount_paid) || 0),
+      0,
+    );
+    const totalPending = payments.reduce(
+      (sum, payment) => sum + (Number(payment.amount_remaining) || 0),
+      0,
+    );
     const paid = payments.filter((p) => p.status === 'Paid').length;
     const overdue = payments.filter((p) => p.status === 'Overdue').length;
     const partial = payments.filter((p) => p.status === 'Partial').length;
-    const collectionRate = totalRevenue / (totalRevenue + totalPending || 1);
-    const avgPayment = totalRevenue / payments.length || 0;
+    const collectionRate =
+      totalRevenue + totalPending > 0 ? (totalRevenue / (totalRevenue + totalPending)) * 100 : 0;
+
     return {
+      total: payments.length,
       totalRevenue,
       totalPending,
       paid,
       overdue,
       partial,
-      total: payments.length,
       collectionRate,
-      avgPayment,
     };
   }, [payments]);
 
   /* ── Filter + Sort ── */
   const filtered = useMemo(() => {
     let list = [...payments];
-    if (search)
+    if (search) {
       list = list.filter(
         (p) =>
-          p.student_name.toLowerCase().includes(search.toLowerCase()) ||
-          p.student_cin.toLowerCase().includes(search.toLowerCase()) ||
-          p.reference.toLowerCase().includes(search.toLowerCase()) ||
+          p.student_name?.toLowerCase().includes(search.toLowerCase()) ||
+          p.student_cin?.toLowerCase().includes(search.toLowerCase()) ||
+          p.reference?.toLowerCase().includes(search.toLowerCase()) ||
           (p.instructor && p.instructor.toLowerCase().includes(search.toLowerCase())),
       );
+    }
     if (filterStatus !== 'All') list = list.filter((p) => p.status === filterStatus);
     if (filterMethod !== 'All') list = list.filter((p) => p.method === filterMethod);
     if (filterType !== 'All') list = list.filter((p) => p.type === filterType);
     list.sort((a, b) => {
-      const va = a[sortField] ?? '';
-      const vb = b[sortField] ?? '';
+      let va = a[sortField] ?? '';
+      let vb = b[sortField] ?? '';
+      if (
+        sortField === 'amount_total' ||
+        sortField === 'amount_paid' ||
+        sortField === 'amount_remaining'
+      ) {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      }
       return sortDir === 'asc' ? (va < vb ? -1 : 1) : va > vb ? -1 : 1;
     });
     return list;
@@ -933,71 +863,92 @@ const Payments = () => {
     }
   };
 
-  /* ── CRUD ── */
-  const handleSave = (form) => {
-    if (modal === 'add') {
-      const newP = {
-        ...form,
-        id: Date.now(),
-        amount_total: parseFloat(form.amount_total),
-        amount_paid: parseFloat(form.amount_paid || 0),
-        amount_remaining: parseFloat(form.amount_remaining || form.amount_total),
-        receipt_number:
-          form.amount_paid >= form.amount_total ? `RCP-${String(Date.now()).slice(-6)}` : null,
-      };
-      setPayments((p) => [newP, ...p]);
+  // Export handlers
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (filterMethod !== 'All') params.append('method', filterMethod);
+      if (filterType !== 'All') params.append('type', filterType);
+      if (search) params.append('search', search);
 
-      addNotification(
-        'New Payment Recorded',
-        `Payment of ${newP.amount_paid.toLocaleString()} MAD received from ${newP.student_name}`,
-        'payment',
-      );
+      const response = await axios.get(`/payments/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
 
-      showToast('Payment created successfully');
-    } else {
-      setPayments((p) =>
-        p.map((x) =>
-          x.id === form.id
-            ? {
-                ...form,
-                amount_total: parseFloat(form.amount_total),
-                amount_paid: parseFloat(form.amount_paid || 0),
-                amount_remaining: parseFloat(form.amount_remaining || 0),
-                receipt_number:
-                  form.amount_paid >= form.amount_total
-                    ? `RCP-${String(form.id).slice(-6)}`
-                    : x.receipt_number,
-              }
-            : x,
-        ),
-      );
-      showToast('Payment updated successfully');
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payments_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export Excel file', 'error');
+    } finally {
+      setIsExporting(false);
     }
-    setModal(null);
-    setEditPayment(null);
   };
 
-  const handleDelete = (id) => {
-    const deletedPayment = payments.find((p) => p.id === id);
-    setPayments((p) => p.filter((x) => x.id !== id));
-    setDeleteTarget(null);
-    setDetailPayment(null);
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (filterMethod !== 'All') params.append('method', filterMethod);
+      if (filterType !== 'All') params.append('type', filterType);
+      if (search) params.append('search', search);
 
-    if (deletedPayment) {
-      addNotification(
-        'Payment Deleted',
-        `Payment ${deletedPayment.reference} for ${deletedPayment.student_name} has been removed`,
-        'system',
+      const response = await axios.get(`/payments/export/pdf?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
       );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payments_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export PDF file', 'error');
+    } finally {
+      setIsExporting(false);
     }
-
-    showToast('Payment deleted', 'error');
   };
 
-  const handlePrint = (payment) => {
-    showToast(`Receipt for ${payment.reference} is ready for printing`);
+  // Print receipt handler
+  const handlePrintReceipt = async (payment) => {
+    try {
+      const response = await axios.get(`/payments/${payment.id}/receipt`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+
+      showToast(`Receipt for ${payment.reference} is ready`);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showToast('Failed to generate receipt', 'error');
+    }
   };
 
+  // Send receipt via email
   const handleSendReceipt = (payment) => {
     if (payment.student_email) {
       showToast(`Receipt sent to ${payment.student_email}`);
@@ -1006,11 +957,77 @@ const Payments = () => {
     }
   };
 
+  /* ── CRUD ── */
+  const handleSave = async (form) => {
+    setIsSaving(true);
+    const isNew = !form.id;
+
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/payments', form);
+      } else {
+        response = await axios.put(`/payments/${form.id}`, form);
+      }
+
+      if (response.data.success) {
+        await fetchPayments();
+
+        if (isNew) {
+          addNotification(
+            'New Payment Recorded',
+            `Payment of ${Number(form.amount_paid).toLocaleString()} DH received from ${form.student_name}`,
+            'payment',
+          );
+          showToast('Payment created successfully');
+        } else {
+          showToast('Payment updated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save payment:', error);
+      showToast(error.response?.data?.message || 'Failed to save payment', 'error');
+    } finally {
+      setIsSaving(false);
+      setModal(null);
+      setEditPayment(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
+    try {
+      const response = await axios.delete(`/payments/${id}`);
+      if (response.data.success) {
+        await fetchPayments();
+        showToast('Payment deleted successfully', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete payment:', error);
+      showToast(error.response?.data?.message || 'Failed to delete payment', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setDetailPayment(null);
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="payments-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading payments...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="payments-page">
       <Toast toast={toast} />
 
-      {/* ── Header ── */}
       <div className="dashboard-header">
         <div className="header-content">
           <div className="header-title">
@@ -1020,22 +1037,21 @@ const Payments = () => {
           <div className="revenue-card">
             <span className="revenue-label">Total Collected</span>
             <span className="revenue-value">
-              {kpis.totalRevenue.toLocaleString()} <small>MAD</small>
+              {kpis.totalRevenue.toLocaleString()} <small>DH</small>
             </span>
             <div className="collection-progress">
               <div
                 className="progress-fill"
-                style={{ width: `${Math.round(kpis.collectionRate * 100)}%` }}
+                style={{ width: `${Math.min(100, kpis.collectionRate)}%` }}
               />
             </div>
             <span className="collection-pct">
-              {Math.round(kpis.collectionRate * 100)}% collection rate
+              {Math.round(kpis.collectionRate)}% collection rate
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── KPI Grid ── */}
       <div className="kpi-grid">
         <KpiCard
           icon={<ReceiptText size={24} />}
@@ -1047,7 +1063,7 @@ const Payments = () => {
         <KpiCard
           icon={<Wallet size={24} />}
           label="Revenue Collected"
-          value={`${(kpis.totalRevenue / 1000).toFixed(1)}k MAD`}
+          value={`${(kpis.totalRevenue / 1000).toFixed(1)}k DH`}
           trend="+12.4%"
           trendValue="this month"
           trendUp={true}
@@ -1055,7 +1071,7 @@ const Payments = () => {
         <KpiCard
           icon={<Clock size={24} />}
           label="Pending Balance"
-          value={`${(kpis.totalPending / 1000).toFixed(1)}k MAD`}
+          value={`${(kpis.totalPending / 1000).toFixed(1)}k DH`}
           trend="Outstanding"
           trendUp={false}
         />
@@ -1068,7 +1084,6 @@ const Payments = () => {
         />
       </div>
 
-      {/* ── View Toggle ── */}
       <div className="view-toggle">
         <button
           className={viewMode === 'cards' ? 'active' : ''}
@@ -1084,7 +1099,6 @@ const Payments = () => {
         </button>
       </div>
 
-      {/* ── Toolbar ── */}
       <div className="toolbar">
         <div className="search-wrapper">
           <Search size={16} className="search-icon" />
@@ -1096,7 +1110,6 @@ const Payments = () => {
             placeholder="Search by name, CIN, reference, instructor..."
           />
         </div>
-
         <select
           className="filter-select"
           value={filterStatus}
@@ -1109,7 +1122,6 @@ const Payments = () => {
             </option>
           ))}
         </select>
-
         <select
           className="filter-select"
           value={filterMethod}
@@ -1122,7 +1134,6 @@ const Payments = () => {
             </option>
           ))}
         </select>
-
         <select
           className="filter-select"
           value={filterType}
@@ -1135,12 +1146,11 @@ const Payments = () => {
             </option>
           ))}
         </select>
-
-        <button className="btn-export" onClick={() => showToast('Excel export coming soon')}>
-          <Download size={15} /> Excel
+        <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />} Excel
         </button>
-        <button className="btn-export" onClick={() => showToast('PDF export coming soon')}>
-          <FileText size={15} /> PDF
+        <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />} PDF
         </button>
         <button
           className="btn-add"
@@ -1153,7 +1163,6 @@ const Payments = () => {
         </button>
       </div>
 
-      {/* ── Content: Cards or Table ── */}
       {viewMode === 'cards' ? (
         <div className="payments-cards-grid">
           {filtered.length === 0 ? (
@@ -1173,13 +1182,12 @@ const Payments = () => {
                   setModal('edit');
                 }}
                 onDelete={setDeleteTarget}
-                onPrint={handlePrint}
+                onPrintReceipt={handlePrintReceipt}
               />
             ))
           )}
         </div>
       ) : (
-        /* ── Table View ── */
         <div className="table-container">
           <div className="table-header">
             <h3>
@@ -1189,7 +1197,6 @@ const Payments = () => {
               </span>
             </h3>
           </div>
-
           <div className="payments-table-wrapper">
             <table className="payments-table">
               <thead>
@@ -1244,11 +1251,11 @@ const Payments = () => {
                         <div className="student-info-cell">
                           <div className="student-avatar-sm">
                             {p.student_name
-                              .split(' ')
+                              ?.split(' ')
                               .map((w) => w[0])
                               .join('')
                               .slice(0, 2)
-                              .toUpperCase()}
+                              .toUpperCase() || '??'}
                           </div>
                           <div>
                             <div className="student-name-cell">{p.student_name}</div>
@@ -1259,12 +1266,16 @@ const Payments = () => {
                       <td>
                         <span className="type-badge">{p.type}</span>
                       </td>
-                      <td className="amount-cell total">{p.amount_total.toLocaleString()} MAD</td>
-                      <td className="amount-cell paid">{p.amount_paid.toLocaleString()} MAD</td>
+                      <td className="amount-cell total">
+                        {(Number(p.amount_total) || 0).toLocaleString()} DH
+                      </td>
+                      <td className="amount-cell paid">
+                        {(Number(p.amount_paid) || 0).toLocaleString()} DH
+                      </td>
                       <td className="amount-cell remaining">
                         {p.amount_remaining > 0 ? (
                           <span className="text-danger">
-                            {p.amount_remaining.toLocaleString()} MAD
+                            {(Number(p.amount_remaining) || 0).toLocaleString()} DH
                           </span>
                         ) : (
                           <span className="text-success">—</span>
@@ -1300,7 +1311,7 @@ const Payments = () => {
                           </button>
                           <button
                             className="action-btn"
-                            onClick={() => handlePrint(p)}
+                            onClick={() => handlePrintReceipt(p)}
                             title="Print"
                           >
                             <Printer size={14} />
@@ -1320,7 +1331,6 @@ const Payments = () => {
               </tbody>
             </table>
           </div>
-
           <div className="table-footer">
             <div className="footer-summary">
               <span>
@@ -1329,11 +1339,15 @@ const Payments = () => {
               <span className="footer-totals">
                 Collected:{' '}
                 <strong>
-                  {filtered.reduce((s, p) => s + p.amount_paid, 0).toLocaleString()} MAD
+                  {filtered.reduce((s, p) => s + (Number(p.amount_paid) || 0), 0).toLocaleString()}{' '}
+                  DH
                 </strong>{' '}
                 · Remaining:{' '}
                 <strong className="text-danger">
-                  {filtered.reduce((s, p) => s + p.amount_remaining, 0).toLocaleString()} MAD
+                  {filtered
+                    .reduce((s, p) => s + (Number(p.amount_remaining) || 0), 0)
+                    .toLocaleString()}{' '}
+                  DH
                 </strong>
               </span>
             </div>
@@ -1344,7 +1358,7 @@ const Payments = () => {
         </div>
       )}
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       {(modal === 'add' || modal === 'edit') && (
         <PaymentModal
           payment={modal === 'edit' ? editPayment : null}
@@ -1353,9 +1367,9 @@ const Payments = () => {
             setEditPayment(null);
           }}
           onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
-
       {detailPayment && (
         <PaymentDetail
           payment={detailPayment}
@@ -1369,16 +1383,16 @@ const Payments = () => {
             setDetailPayment(null);
             setDeleteTarget(p);
           }}
-          onPrint={handlePrint}
+          onPrintReceipt={handlePrintReceipt}
           onSendReceipt={handleSendReceipt}
         />
       )}
-
       {deleteTarget && (
         <DeleteConfirm
           payment={deleteTarget}
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
     </div>

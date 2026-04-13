@@ -1201,3 +1201,204 @@
     }
   }
 }
+
+// Loading state
+.calendar-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+
+  .loading-spinner {
+    text-align: center;
+
+    .spinner {
+      animation: spin 1s linear infinite;
+      color: #8cff2e;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Disabled button styles
+.btn-save:disabled,
+.btn-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+// Selected date styling
+.calendar-day.selected {
+  background: rgba(140, 255, 46, 0.1);
+  border: 1px solid #8cff2e;
+  border-radius: 8px;
+
+  .day-number {
+    background: #8cff2e;
+    color: #0d0d0d;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.week-day-header.selected {
+  background: rgba(140, 255, 46, 0.2);
+  border-radius: 8px;
+
+  .week-day-number {
+    background: #8cff2e;
+    color: #0d0d0d;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+}
+
+.day-header-content.selected {
+  .day-number {
+    background: #8cff2e;
+    color: #0d0d0d;
+    border-radius: 50%;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+  }
+}
+
+// Loading state (same as students)
+.calendar-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+
+  .loading-spinner {
+    text-align: center;
+
+    .spinner {
+      animation: spin 1s linear infinite;
+      color: #8cff2e;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Spinner animation
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Action button spinner
+.btn-save .spinner,
+.btn-delete .spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+// Disabled button styles
+.btn-save:disabled,
+.btn-delete:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+// Calendar toast notification
+.calendar-toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideInRight 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  &.toast-success {
+    background: #10b981;
+    color: white;
+  }
+
+  &.toast-error {
+    background: #ef4444;
+    color: white;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.refresh-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(140, 255, 46, 0.1);
+  border: 1px solid rgba(140, 255, 46, 0.3);
+  border-radius: 8px;
+  color: #8cff2e;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(140, 255, 46, 0.2);
+    border-color: #8cff2e;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+}

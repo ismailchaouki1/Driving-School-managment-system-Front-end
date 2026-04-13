@@ -1,5 +1,5 @@
 // Pages/System/Instructors.jsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -55,239 +55,14 @@ import {
   Camera,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Instructors.scss';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const INSTRUCTOR_TYPES = ['Code', 'Driving', 'Both', 'Simulator', 'Evaluation'];
 const INSTRUCTOR_STATUSES = ['Active', 'On Leave', 'Inactive', 'Training'];
 const EXPERIENCE_LEVELS = ['Junior', 'Intermediate', 'Senior', 'Master'];
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-const MOCK_INSTRUCTORS = [
-  {
-    id: 1,
-    first_name: 'Mohammed',
-    last_name: 'Benali',
-    email: 'mohammed.benali@clario.com',
-    phone: '0612345678',
-    address: '45 Rue Mohammed V, Casablanca',
-    cin: 'AB123456',
-    type: 'Both',
-    status: 'Active',
-    experience_level: 'Senior',
-    years_experience: 8,
-    hire_date: '2017-03-15',
-    specialization: 'Category B, C',
-    license_number: 'IN-2024-001',
-    avatar: null,
-    students_count: 28,
-    sessions_count: 156,
-    completion_rate: 94,
-    rating: 4.8,
-    revenue: 31200,
-    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    available_hours: { start: '08:00', end: '18:00' },
-    vehicles_assigned: [1, 2],
-    notes: 'Senior instructor with excellent track record',
-    documents: [],
-    certifications: [
-      {
-        id: 1,
-        name: 'Driving Instructor License',
-        issue_date: '2017-03-15',
-        expiry_date: '2027-03-15',
-      },
-      {
-        id: 2,
-        name: 'First Aid Certification',
-        issue_date: '2023-01-10',
-        expiry_date: '2026-01-10',
-      },
-    ],
-    schedule: [
-      { day: 'Monday', sessions: ['09:00-10:30', '11:00-12:30', '14:00-15:30'] },
-      { day: 'Tuesday', sessions: ['09:00-10:30', '11:00-12:30', '14:00-15:30'] },
-      { day: 'Wednesday', sessions: ['09:00-10:30', '11:00-12:30'] },
-      { day: 'Thursday', sessions: ['09:00-10:30', '11:00-12:30', '14:00-15:30'] },
-      { day: 'Friday', sessions: ['09:00-10:30', '11:00-12:30'] },
-    ],
-  },
-  {
-    id: 2,
-    first_name: 'Fatima',
-    last_name: 'Zahra',
-    email: 'fatima.zahra@clario.com',
-    phone: '0698765432',
-    address: '12 Avenue Hassan II, Rabat',
-    cin: 'CD789012',
-    type: 'Driving',
-    status: 'Active',
-    experience_level: 'Senior',
-    years_experience: 7,
-    hire_date: '2018-06-20',
-    specialization: 'Category B, BE',
-    license_number: 'IN-2024-002',
-    avatar: null,
-    students_count: 25,
-    sessions_count: 142,
-    completion_rate: 92,
-    rating: 4.7,
-    revenue: 28400,
-    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday'],
-    available_hours: { start: '09:00', end: '19:00' },
-    vehicles_assigned: [2, 4],
-    notes: 'Specializes in heavy vehicle training',
-    documents: [],
-    certifications: [
-      {
-        id: 1,
-        name: 'Driving Instructor License',
-        issue_date: '2018-06-20',
-        expiry_date: '2028-06-20',
-      },
-      {
-        id: 2,
-        name: 'Heavy Vehicle Certification',
-        issue_date: '2019-08-15',
-        expiry_date: '2029-08-15',
-      },
-    ],
-    schedule: [
-      { day: 'Monday', sessions: ['10:00-11:30', '13:00-14:30', '15:00-16:30'] },
-      { day: 'Tuesday', sessions: ['10:00-11:30', '13:00-14:30', '15:00-16:30'] },
-      { day: 'Wednesday', sessions: ['10:00-11:30', '13:00-14:30'] },
-      { day: 'Thursday', sessions: ['10:00-11:30', '13:00-14:30', '15:00-16:30'] },
-      { day: 'Saturday', sessions: ['09:00-10:30', '11:00-12:30'] },
-    ],
-  },
-  {
-    id: 3,
-    first_name: 'Karim',
-    last_name: 'Tazi',
-    email: 'karim.tazi@clario.com',
-    phone: '0655443322',
-    address: '8 Rue de la Liberté, Marrakech',
-    cin: 'EF345678',
-    type: 'Code',
-    status: 'Active',
-    experience_level: 'Intermediate',
-    years_experience: 4,
-    hire_date: '2020-01-10',
-    specialization: 'Category B - Code',
-    license_number: 'IN-2024-003',
-    avatar: null,
-    students_count: 22,
-    sessions_count: 128,
-    completion_rate: 89,
-    rating: 4.6,
-    revenue: 25600,
-    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    available_hours: { start: '08:30', end: '17:30' },
-    vehicles_assigned: [],
-    notes: 'Code specialist, excellent theory teaching',
-    documents: [],
-    certifications: [
-      {
-        id: 1,
-        name: 'Code Instructor Certification',
-        issue_date: '2020-01-10',
-        expiry_date: '2030-01-10',
-      },
-    ],
-    schedule: [
-      { day: 'Monday', sessions: ['09:00-11:00', '14:00-16:00'] },
-      { day: 'Tuesday', sessions: ['09:00-11:00', '14:00-16:00'] },
-      { day: 'Wednesday', sessions: ['09:00-11:00'] },
-      { day: 'Thursday', sessions: ['09:00-11:00', '14:00-16:00'] },
-      { day: 'Friday', sessions: ['09:00-11:00'] },
-    ],
-  },
-  {
-    id: 4,
-    first_name: 'Nadia',
-    last_name: 'Ouazzani',
-    email: 'nadia.ouazzani@clario.com',
-    phone: '0611223344',
-    address: '23 Rue Oukaimeden, Casablanca',
-    cin: 'GH901234',
-    type: 'Driving',
-    status: 'On Leave',
-    experience_level: 'Senior',
-    years_experience: 9,
-    hire_date: '2015-09-01',
-    specialization: 'Category A, B',
-    license_number: 'IN-2024-004',
-    avatar: null,
-    students_count: 20,
-    sessions_count: 118,
-    completion_rate: 91,
-    rating: 4.8,
-    revenue: 23600,
-    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-    available_hours: { start: '09:00', end: '17:00' },
-    vehicles_assigned: [3],
-    notes: 'Motorcycle specialist, currently on maternity leave',
-    documents: [],
-    certifications: [
-      {
-        id: 1,
-        name: 'Driving Instructor License',
-        issue_date: '2015-09-01',
-        expiry_date: '2025-09-01',
-      },
-      {
-        id: 2,
-        name: 'Motorcycle Instructor Certification',
-        issue_date: '2016-05-20',
-        expiry_date: '2026-05-20',
-      },
-    ],
-    schedule: [],
-  },
-  {
-    id: 5,
-    first_name: 'Hassan',
-    last_name: 'El Fassi',
-    email: 'hassan.elfassi@clario.com',
-    phone: '0677889900',
-    address: '15 Rue de la Gare, Fez',
-    cin: 'IJ567890',
-    type: 'Simulator',
-    status: 'Active',
-    experience_level: 'Intermediate',
-    years_experience: 3,
-    hire_date: '2022-02-14',
-    specialization: 'Simulator Training',
-    license_number: 'IN-2024-005',
-    avatar: null,
-    students_count: 18,
-    sessions_count: 98,
-    completion_rate: 87,
-    rating: 4.5,
-    revenue: 19600,
-    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-    available_hours: { start: '10:00', end: '20:00' },
-    vehicles_assigned: [],
-    notes: 'Simulator expert, evening availability',
-    documents: [],
-    certifications: [
-      {
-        id: 1,
-        name: 'Simulator Instructor Certification',
-        issue_date: '2022-02-14',
-        expiry_date: '2032-02-14',
-      },
-    ],
-    schedule: [
-      { day: 'Monday', sessions: ['14:00-15:30', '16:00-17:30', '18:00-19:30'] },
-      { day: 'Tuesday', sessions: ['14:00-15:30', '16:00-17:30', '18:00-19:30'] },
-      { day: 'Wednesday', sessions: ['14:00-15:30', '16:00-17:30'] },
-      { day: 'Thursday', sessions: ['14:00-15:30', '16:00-17:30', '18:00-19:30'] },
-      { day: 'Friday', sessions: ['14:00-15:30', '16:00-17:30'] },
-      { day: 'Saturday', sessions: ['10:00-11:30', '13:00-14:30'] },
-    ],
-  },
-];
 
 const EMPTY_FORM = {
   first_name: '',
@@ -322,14 +97,14 @@ const getRandomGradient = (id) => {
     'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
     'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
   ];
-  return gradients[id % gradients.length];
+  return gradients[(id || 0) % gradients.length];
 };
 
 /* ─────────────── Sub-components ─────────────── */
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
-  const statusClass = status.toLowerCase().replace(' ', '-');
+  const statusClass = status?.toLowerCase().replace(' ', '-') || 'active';
   const icons = {
     active: <CheckCircle size={10} />,
     'on-leave': <Clock size={10} />,
@@ -346,14 +121,16 @@ const StatusBadge = ({ status }) => {
 
 // Type Badge Component
 const TypeBadge = ({ type }) => {
-  const typeClass = type.toLowerCase();
+  const typeClass = type?.toLowerCase() || 'both';
   return <span className={`type-badge ${typeClass}`}>{type}</span>;
 };
 
-// Rating Stars Component
+// Rating Stars Component - FIXED
 const RatingStars = ({ rating }) => {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
+  // Convert rating to number and handle invalid values
+  const numericRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
+  const fullStars = Math.floor(numericRating);
+  const hasHalfStar = numericRating % 1 >= 0.5;
 
   return (
     <div className="rating-stars">
@@ -366,7 +143,7 @@ const RatingStars = ({ rating }) => {
           className={i < fullStars ? 'filled' : ''}
         />
       ))}
-      <span>{rating.toFixed(1)}</span>
+      <span>{numericRating.toFixed(1)}</span>
     </div>
   );
 };
@@ -384,7 +161,10 @@ const SortIcon = ({ field, sortField, sortDir }) => {
 // Instructor Card Component
 const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) => {
   const [expanded, setExpanded] = useState(false);
-  const revenuePerSession = instructor.revenue / instructor.sessions_count;
+  const revenuePerSession =
+    instructor.sessions_count > 0
+      ? (Number(instructor.revenue) || 0) / (Number(instructor.sessions_count) || 1)
+      : 0;
 
   return (
     <div className={`instructor-card ${expanded ? 'expanded' : ''}`}>
@@ -431,28 +211,28 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
           <div className="stat-item">
             <Users size={14} />
             <div>
-              <span className="stat-value">{instructor.students_count}</span>
+              <span className="stat-value">{Number(instructor.students_count) || 0}</span>
               <span className="stat-label">Students</span>
             </div>
           </div>
           <div className="stat-item">
             <Car size={14} />
             <div>
-              <span className="stat-value">{instructor.sessions_count}</span>
+              <span className="stat-value">{Number(instructor.sessions_count) || 0}</span>
               <span className="stat-label">Sessions</span>
             </div>
           </div>
           <div className="stat-item">
             <Target size={14} />
             <div>
-              <span className="stat-value">{instructor.completion_rate}%</span>
+              <span className="stat-value">{Number(instructor.completion_rate) || 0}%</span>
               <span className="stat-label">Completion</span>
             </div>
           </div>
           <div className="stat-item">
             <Star size={14} />
             <div>
-              <RatingStars rating={instructor.rating} />
+              <RatingStars rating={Number(instructor.rating) || 0} />
             </div>
           </div>
         </div>
@@ -460,17 +240,20 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
         <div className="performance-bar">
           <div className="performance-header">
             <span>Performance</span>
-            <span className="performance-percent">{instructor.completion_rate}%</span>
+            <span className="performance-percent">{Number(instructor.completion_rate) || 0}%</span>
           </div>
           <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${instructor.completion_rate}%` }} />
+            <div
+              className="progress-fill"
+              style={{ width: `${Number(instructor.completion_rate) || 0}%` }}
+            />
           </div>
         </div>
 
         <div className="revenue-info">
           <DollarSign size={14} />
-          <span>Revenue: {instructor.revenue.toLocaleString()} MAD</span>
-          <span className="revenue-per-session">({revenuePerSession.toFixed(0)} MAD/session)</span>
+          <span>Revenue: {(Number(instructor.revenue) || 0).toLocaleString()} MAD</span>
+          <span className="revenue-per-session">({Math.round(revenuePerSession)} MAD/session)</span>
         </div>
       </div>
 
@@ -503,19 +286,19 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
             <div className="details-grid">
               <div className="detail-item">
                 <label>License Number</label>
-                <p>{instructor.license_number}</p>
+                <p>{instructor.license_number || 'N/A'}</p>
               </div>
               <div className="detail-item">
                 <label>Years Experience</label>
-                <p>{instructor.years_experience} years</p>
+                <p>{Number(instructor.years_experience) || 0} years</p>
               </div>
               <div className="detail-item">
                 <label>Hire Date</label>
-                <p>{instructor.hire_date}</p>
+                <p>{instructor.hire_date || 'N/A'}</p>
               </div>
               <div className="detail-item">
                 <label>Specialization</label>
-                <p>{instructor.specialization}</p>
+                <p>{instructor.specialization || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -528,7 +311,7 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
               {DAYS_OF_WEEK.map((day) => (
                 <span
                   key={day}
-                  className={`day-badge ${instructor.available_days.includes(day) ? 'active' : 'inactive'}`}
+                  className={`day-badge ${instructor.available_days?.includes(day) ? 'active' : 'inactive'}`}
                 >
                   {day.slice(0, 3)}
                 </span>
@@ -537,7 +320,8 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
             <div className="available-hours">
               <Clock size={12} />
               <span>
-                {instructor.available_hours.start} - {instructor.available_hours.end}
+                {instructor.available_hours?.start || '09:00'} -{' '}
+                {instructor.available_hours?.end || '18:00'}
               </span>
             </div>
           </div>
@@ -548,7 +332,7 @@ const InstructorCard = ({ instructor, onView, onEdit, onDelete, onSchedule }) =>
 };
 
 // Instructor Modal (Add/Edit)
-const InstructorModal = ({ instructor, onClose, onSave }) => {
+const InstructorModal = ({ instructor, onClose, onSave, isSaving }) => {
   const isEdit = !!instructor?.id;
   const [form, setForm] = useState(isEdit ? { ...instructor } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
@@ -557,7 +341,7 @@ const InstructorModal = ({ instructor, onClose, onSave }) => {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const toggleDay = (day) => {
-    const currentDays = [...form.available_days];
+    const currentDays = [...(form.available_days || [])];
     if (currentDays.includes(day)) {
       set(
         'available_days',
@@ -570,18 +354,19 @@ const InstructorModal = ({ instructor, onClose, onSave }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.first_name.trim()) e.first_name = 'First name is required';
-    if (!form.last_name.trim()) e.last_name = 'Last name is required';
-    if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email)) e.email = 'Valid email is required';
-    if (!form.phone.trim()) e.phone = 'Phone number is required';
-    if (!form.cin.trim()) e.cin = 'CIN is required';
+    if (!form.first_name?.trim()) e.first_name = 'First name is required';
+    if (!form.last_name?.trim()) e.last_name = 'Last name is required';
+    if (!form.email?.trim() || !/\S+@\S+\.\S+/.test(form.email))
+      e.email = 'Valid email is required';
+    if (!form.phone?.trim()) e.phone = 'Phone number is required';
+    if (!form.cin?.trim()) e.cin = 'CIN is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = () => {
     if (validate()) {
-      onSave({ ...form, id: form.id || Date.now() });
+      onSave(form);
     }
   };
 
@@ -798,7 +583,7 @@ const InstructorModal = ({ instructor, onClose, onSave }) => {
                         <button
                           key={day}
                           type="button"
-                          className={`day-btn ${form.available_days.includes(day) ? 'active' : ''}`}
+                          className={`day-btn ${form.available_days?.includes(day) ? 'active' : ''}`}
                           onClick={() => toggleDay(day)}
                         >
                           {day.slice(0, 3)}
@@ -836,8 +621,8 @@ const InstructorModal = ({ instructor, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <CheckCircle size={15} />
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <CheckCircle size={15} />}
             {isEdit ? 'Save Changes' : 'Add Instructor'}
           </button>
         </div>
@@ -850,7 +635,10 @@ const InstructorModal = ({ instructor, onClose, onSave }) => {
 const InstructorDetail = ({ instructor, onClose, onEdit, onDelete, onSchedule }) => {
   if (!instructor) return null;
 
-  const revenuePerSession = instructor.revenue / instructor.sessions_count;
+  const revenuePerSession =
+    instructor.sessions_count > 0
+      ? (Number(instructor.revenue) || 0) / (Number(instructor.sessions_count) || 1)
+      : 0;
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -893,28 +681,28 @@ const InstructorDetail = ({ instructor, onClose, onEdit, onDelete, onSchedule })
             <div className="stat-card">
               <Users size={20} />
               <div>
-                <div className="stat-value">{instructor.students_count}</div>
+                <div className="stat-value">{Number(instructor.students_count) || 0}</div>
                 <div className="stat-label">Students</div>
               </div>
             </div>
             <div className="stat-card">
               <Car size={20} />
               <div>
-                <div className="stat-value">{instructor.sessions_count}</div>
+                <div className="stat-value">{Number(instructor.sessions_count) || 0}</div>
                 <div className="stat-label">Sessions</div>
               </div>
             </div>
             <div className="stat-card">
               <Target size={20} />
               <div>
-                <div className="stat-value">{instructor.completion_rate}%</div>
+                <div className="stat-value">{Number(instructor.completion_rate) || 0}%</div>
                 <div className="stat-label">Completion</div>
               </div>
             </div>
             <div className="stat-card">
               <Star size={20} />
               <div>
-                <RatingStars rating={instructor.rating} />
+                <RatingStars rating={Number(instructor.rating) || 0} />
               </div>
             </div>
           </div>
@@ -927,27 +715,27 @@ const InstructorDetail = ({ instructor, onClose, onEdit, onDelete, onSchedule })
               <div className="info-grid">
                 <div className="info-row">
                   <span>License Number</span>
-                  <strong>{instructor.license_number}</strong>
+                  <strong>{instructor.license_number || 'N/A'}</strong>
                 </div>
                 <div className="info-row">
                   <span>Years Experience</span>
-                  <strong>{instructor.years_experience} years</strong>
+                  <strong>{Number(instructor.years_experience) || 0} years</strong>
                 </div>
                 <div className="info-row">
                   <span>Hire Date</span>
-                  <strong>{instructor.hire_date}</strong>
+                  <strong>{instructor.hire_date || 'N/A'}</strong>
                 </div>
                 <div className="info-row">
                   <span>Specialization</span>
-                  <strong>{instructor.specialization}</strong>
+                  <strong>{instructor.specialization || 'N/A'}</strong>
                 </div>
                 <div className="info-row">
                   <span>Revenue Generated</span>
-                  <strong>{instructor.revenue.toLocaleString()} MAD</strong>
+                  <strong>{(Number(instructor.revenue) || 0).toLocaleString()} MAD</strong>
                 </div>
                 <div className="info-row">
                   <span>Avg per Session</span>
-                  <strong>{revenuePerSession.toFixed(0)} MAD</strong>
+                  <strong>{Math.round(revenuePerSession)} MAD</strong>
                 </div>
               </div>
             </div>
@@ -1092,7 +880,7 @@ const ScheduleModal = ({ instructor, onClose }) => {
 };
 
 // Delete Confirm Modal
-const DeleteConfirm = ({ instructor, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ instructor, onConfirm, onCancel, isDeleting }) => (
   <div className="modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -1110,7 +898,8 @@ const DeleteConfirm = ({ instructor, onConfirm, onCancel }) => (
         <button className="btn-cancel" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn-delete" onClick={onConfirm}>
+        <button className="btn-delete" onClick={onConfirm} disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}
           Delete Instructor
         </button>
       </div>
@@ -1138,13 +927,16 @@ const KpiCard = ({
   suffix = '',
 }) => {
   const Icon = IconComponent;
+  // Ensure value is a number
+  const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+
   return (
     <div className="kpi-card">
       <div className="kpi-icon">{Icon && <Icon size={24} />}</div>
       <div className="kpi-info">
         <div className="kpi-value">
           {prefix}
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {typeof numericValue === 'number' ? numericValue.toLocaleString() : numericValue}
           {suffix}
         </div>
         <div className="kpi-label">{label}</div>
@@ -1165,7 +957,11 @@ const KpiCard = ({
 
 /* ─────────────── Main Component ─────────────── */
 const Instructors = () => {
-  const [instructors, setInstructors] = useState(MOCK_INSTRUCTORS);
+  const [instructors, setInstructors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -1186,14 +982,50 @@ const Instructors = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // KPIs
+  // Fetch instructors from API
+  const fetchInstructors = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/instructors');
+      if (response.data.success) {
+        // Ensure numeric values are properly parsed
+        const instructorsData = response.data.data.map((instructor) => ({
+          ...instructor,
+          id: Number(instructor.id),
+          students_count: Number(instructor.students_count) || 0,
+          sessions_count: Number(instructor.sessions_count) || 0,
+          completion_rate: Number(instructor.completion_rate) || 0,
+          rating: Number(instructor.rating) || 0,
+          revenue: Number(instructor.revenue) || 0,
+          years_experience: Number(instructor.years_experience) || 0,
+        }));
+        setInstructors(instructorsData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch instructors:', error);
+      showToast('Failed to load instructors', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchInstructors();
+  }, [fetchInstructors]);
+
+  // KPIs - FIXED with proper number conversion
   const kpis = useMemo(() => {
     const total = instructors.length;
     const active = instructors.filter((i) => i.status === 'Active').length;
-    const totalSessions = instructors.reduce((sum, i) => sum + i.sessions_count, 0);
-    const totalRevenue = instructors.reduce((sum, i) => sum + i.revenue, 0);
-    const avgRating = instructors.reduce((sum, i) => sum + i.rating, 0) / total;
-    const avgCompletion = instructors.reduce((sum, i) => sum + i.completion_rate, 0) / total;
+    const totalSessions = instructors.reduce((sum, i) => sum + (Number(i.sessions_count) || 0), 0);
+    const totalRevenue = instructors.reduce((sum, i) => sum + (Number(i.revenue) || 0), 0);
+    const avgRating =
+      total > 0 ? instructors.reduce((sum, i) => sum + (Number(i.rating) || 0), 0) / total : 0;
+    const avgCompletion =
+      total > 0
+        ? instructors.reduce((sum, i) => sum + (Number(i.completion_rate) || 0), 0) / total
+        : 0;
+
     return { total, active, totalSessions, totalRevenue, avgRating, avgCompletion };
   }, [instructors]);
 
@@ -1205,15 +1037,25 @@ const Instructors = () => {
       list = list.filter(
         (i) =>
           `${i.first_name} ${i.last_name}`.toLowerCase().includes(q) ||
-          i.email.toLowerCase().includes(q) ||
-          i.phone.includes(q),
+          i.email?.toLowerCase().includes(q) ||
+          i.phone?.includes(q),
       );
     }
     if (filterType !== 'All') list = list.filter((i) => i.type === filterType);
     if (filterStatus !== 'All') list = list.filter((i) => i.status === filterStatus);
     list.sort((a, b) => {
-      const va = a[sortField] ?? '';
-      const vb = b[sortField] ?? '';
+      let va = a[sortField] ?? '';
+      let vb = b[sortField] ?? '';
+      if (
+        sortField === 'students_count' ||
+        sortField === 'sessions_count' ||
+        sortField === 'completion_rate' ||
+        sortField === 'rating' ||
+        sortField === 'revenue'
+      ) {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      }
       return sortDir === 'asc' ? (va < vb ? -1 : 1) : va > vb ? -1 : 1;
     });
     return list;
@@ -1227,49 +1069,147 @@ const Instructors = () => {
     }
   };
 
-  const handleSave = (data) => {
-    const isNew = !data.id || !instructors.find((i) => i.id === data.id);
-    if (isNew) {
-      const newInstructor = {
-        ...data,
-        id: Date.now(),
-        students_count: 0,
-        sessions_count: 0,
-        completion_rate: 0,
-        rating: 0,
-        revenue: 0,
-        certifications: [],
-        schedule: [],
-      };
-      setInstructors((prev) => [newInstructor, ...prev]);
-      addNotification(
-        'New Instructor Added',
-        `${data.first_name} ${data.last_name} has been added`,
-        'system',
-      );
-      showToast('Instructor added successfully');
-    } else {
-      setInstructors((prev) => prev.map((i) => (i.id === data.id ? { ...i, ...data } : i)));
-      showToast('Instructor updated successfully');
+  // Export handlers
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== 'All') params.append('type', filterType);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/instructors/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `instructors_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export Excel file', 'error');
+    } finally {
+      setIsExporting(false);
     }
-    setModal(null);
-    setEditInstructor(null);
   };
 
-  const handleDelete = (id) => {
-    const deleted = instructors.find((i) => i.id === id);
-    setInstructors((prev) => prev.filter((i) => i.id !== id));
-    setDeleteTarget(null);
-    setDetailInstructor(null);
-    if (deleted) {
-      addNotification(
-        'Instructor Deleted',
-        `${deleted.first_name} ${deleted.last_name} has been removed`,
-        'system',
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== 'All') params.append('type', filterType);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/instructors/export/pdf?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
       );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `instructors_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export PDF file', 'error');
+    } finally {
+      setIsExporting(false);
     }
-    showToast('Instructor deleted', 'error');
   };
+
+  // CRUD operations
+  const handleSave = async (data) => {
+    setIsSaving(true);
+    const isNew = !data.id;
+
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/instructors', data);
+      } else {
+        response = await axios.put(`/instructors/${data.id}`, data);
+      }
+
+      if (response.data.success) {
+        await fetchInstructors();
+
+        if (isNew) {
+          addNotification(
+            'New Instructor Added',
+            `${data.first_name} ${data.last_name} has been added`,
+            'system',
+          );
+          showToast('Instructor added successfully');
+        } else {
+          showToast('Instructor updated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save instructor:', error);
+      showToast(error.response?.data?.message || 'Failed to save instructor', 'error');
+    } finally {
+      setIsSaving(false);
+      setModal(null);
+      setEditInstructor(null);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
+
+    try {
+      const response = await axios.delete(`/instructors/${id}`);
+
+      if (response.data.success) {
+        const deletedInstructor = instructors.find((i) => i.id === id);
+        await fetchInstructors();
+
+        if (deletedInstructor) {
+          addNotification(
+            'Instructor Deleted',
+            `${deletedInstructor.first_name} ${deletedInstructor.last_name} has been removed`,
+            'system',
+          );
+        }
+
+        showToast('Instructor deleted successfully', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete instructor:', error);
+      showToast(error.response?.data?.message || 'Failed to delete instructor', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setDetailInstructor(null);
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="instructors-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading instructors...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="instructors-page">
@@ -1396,11 +1336,13 @@ const Instructors = () => {
             </option>
           ))}
         </select>
-        <button className="btn-export" onClick={() => showToast('Excel export coming soon')}>
-          <Download size={15} /> Excel
+        <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
+          Excel
         </button>
-        <button className="btn-export" onClick={() => showToast('PDF export coming soon')}>
-          <FileText size={15} /> PDF
+        <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />}
+          PDF
         </button>
         <button
           className="btn-add"
@@ -1501,23 +1443,23 @@ const Instructors = () => {
                     <td>
                       <StatusBadge status={instructor.status} />
                     </td>
-                    <td>{instructor.students_count}</td>
-                    <td>{instructor.sessions_count}</td>
+                    <td>{Number(instructor.students_count) || 0}</td>
+                    <td>{Number(instructor.sessions_count) || 0}</td>
                     <td>
                       <div className="completion-cell">
                         <div className="completion-bar">
                           <div
                             className="completion-fill"
-                            style={{ width: `${instructor.completion_rate}%` }}
+                            style={{ width: `${Number(instructor.completion_rate) || 0}%` }}
                           />
                         </div>
-                        <span>{instructor.completion_rate}%</span>
+                        <span>{Number(instructor.completion_rate) || 0}%</span>
                       </div>
                     </td>
                     <td>
-                      <RatingStars rating={instructor.rating} />
+                      <RatingStars rating={Number(instructor.rating) || 0} />
                     </td>
-                    <td>{instructor.revenue.toLocaleString()} MAD</td>
+                    <td>{(Number(instructor.revenue) || 0).toLocaleString()} MAD</td>
                     <td>
                       <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -1571,6 +1513,7 @@ const Instructors = () => {
             setEditInstructor(null);
           }}
           onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
       {detailInstructor && (
@@ -1597,6 +1540,7 @@ const Instructors = () => {
           instructor={deleteTarget}
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
     </div>

@@ -1408,3 +1408,89 @@
     font-size: 13px;
   }
 }
+// Loading state (same as students)
+.sessions-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+
+  .loading-spinner {
+    text-align: center;
+
+    .spinner {
+      animation: spin 1s linear infinite;
+      color: #8cff2e;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Spinner animation
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Action button spinner
+.btn-save .spinner,
+.btn-delete .spinner,
+.btn-export .spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
+
+// Disabled button styles
+.btn-save:disabled,
+.btn-delete:disabled,
+.btn-export:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+// Toast notification (optional - if you want to keep it consistent)
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  animation: slideInRight 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  &.toast-success {
+    background: #10b981;
+    color: white;
+  }
+
+  &.toast-error {
+    background: #ef4444;
+    color: white;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

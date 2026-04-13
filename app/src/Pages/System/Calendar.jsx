@@ -1,5 +1,5 @@
-// Calendar.jsx - Updated with notification handling
-import { useState } from 'react';
+// Calendar.jsx - Complete with API Integration
+import { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,145 +23,28 @@ import {
   AlertCircle,
   RefreshCw,
   FileText,
+  Loader,
+  UserCheck,
+  UserPlus,
+  CreditCard,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Calendar.scss';
 
-/* ─────────────── Mock Data (Same as Sessions) ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const SESSION_TYPES = ['Code', 'Driving'];
 const SESSION_STATUSES = ['Scheduled', 'In Progress', 'Completed', 'Cancelled', 'No Show'];
-const INSTRUCTORS = [
-  { id: 1, name: 'Mohammed Benali', avatar: null, type: 'Code & Driving' },
-  { id: 2, name: 'Fatima Zahra', avatar: null, type: 'Driving' },
-  { id: 3, name: 'Karim Tazi', avatar: null, type: 'Code' },
-  { id: 4, name: 'Nadia Ouazzani', avatar: null, type: 'Driving' },
-  { id: 5, name: 'Hassan El Fassi', avatar: null, type: 'Simulator' },
-];
-const VEHICLES = [
-  { id: 1, plate: 'ABC-123', model: 'Peugeot 208', category: 'B', available: true },
-  { id: 2, plate: 'DEF-456', model: 'Renault Clio', category: 'B', available: true },
-  { id: 3, plate: 'GHI-789', model: 'Volkswagen Golf', category: 'B', available: false },
-  { id: 4, plate: 'JKL-012', model: 'Ford Focus', category: 'B', available: true },
-  { id: 5, plate: 'MNO-345', model: 'Dacia Logan', category: 'B', available: true },
-];
-
-const STUDENTS = [
-  { id: 1, name: 'Youssef Alami', category: 'B', phone: '0612345678' },
-  { id: 2, name: 'Fatima Benali', category: 'B', phone: '0698765432' },
-  { id: 3, name: 'Karim Cherkaoui', category: 'C', phone: '0655443322' },
-  { id: 4, name: 'Nadia Tazi', category: 'A', phone: '0611223344' },
-  { id: 5, name: 'Hassan Ouazzani', category: 'BE', phone: '0677889900' },
-];
-
-const MOCK_SESSIONS = [
-  {
-    id: 1,
-    student_id: 1,
-    student_name: 'Youssef Alami',
-    student_category: 'B',
-    instructor_id: 1,
-    instructor_name: 'Mohammed Benali',
-    type: 'Driving',
-    status: 'Scheduled',
-    date: '2025-01-20',
-    start_time: '09:00',
-    end_time: '10:30',
-    duration: 90,
-    vehicle_id: 1,
-    vehicle_plate: 'ABC-123',
-    location: 'Driving Range A',
-    notes: 'Focus on parallel parking',
-    created_at: '2025-01-15T10:00:00',
-  },
-  {
-    id: 2,
-    student_id: 2,
-    student_name: 'Fatima Benali',
-    student_category: 'B',
-    instructor_id: 2,
-    instructor_name: 'Fatima Zahra',
-    type: 'Code',
-    status: 'Completed',
-    date: '2025-01-18',
-    start_time: '14:00',
-    end_time: '16:00',
-    duration: 120,
-    vehicle_id: null,
-    vehicle_plate: null,
-    location: 'Classroom 1',
-    notes: 'Code review - passed with 85%',
-    created_at: '2025-01-10T09:00:00',
-  },
-  {
-    id: 3,
-    student_id: 3,
-    student_name: 'Karim Cherkaoui',
-    student_category: 'C',
-    instructor_id: 1,
-    instructor_name: 'Mohammed Benali',
-    type: 'Driving',
-    status: 'In Progress',
-    date: '2025-01-19',
-    start_time: '11:00',
-    end_time: '12:30',
-    duration: 90,
-    vehicle_id: 2,
-    vehicle_plate: 'DEF-456',
-    location: 'Highway Practice',
-    notes: 'Highway driving practice',
-    created_at: '2025-01-12T14:30:00',
-  },
-  {
-    id: 4,
-    student_id: 4,
-    student_name: 'Nadia Tazi',
-    student_category: 'A',
-    instructor_id: 4,
-    instructor_name: 'Nadia Ouazzani',
-    type: 'Simulator',
-    status: 'Scheduled',
-    date: '2025-01-21',
-    start_time: '15:00',
-    end_time: '16:30',
-    duration: 90,
-    vehicle_id: null,
-    vehicle_plate: null,
-    location: 'Simulator Room',
-    notes: 'Motorcycle simulator practice',
-    created_at: '2025-01-14T11:00:00',
-  },
-  {
-    id: 5,
-    student_id: 5,
-    student_name: 'Hassan Ouazzani',
-    student_category: 'BE',
-    instructor_id: 2,
-    instructor_name: 'Fatima Zahra',
-    type: 'Evaluation',
-    status: 'Scheduled',
-    date: '2025-01-22',
-    start_time: '10:00',
-    end_time: '11:30',
-    duration: 90,
-    vehicle_id: 4,
-    vehicle_plate: 'JKL-012',
-    location: 'Test Track',
-    notes: 'Final evaluation before exam',
-    created_at: '2025-01-16T08:00:00',
-  },
-];
 
 /* ─────────────── Helper Functions ─────────────── */
-const getStudentById = (id) => STUDENTS.find((s) => s.id === id);
-const getInstructorById = (id) => INSTRUCTORS.find((i) => i.id === id);
-const getVehicleById = (id) => VEHICLES.find((v) => v.id === id);
-
 const formatDate = (dateString) => {
+  if (!dateString) return '';
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 const formatTime = (timeString) => {
+  if (!timeString) return '';
   return timeString.slice(0, 5);
 };
 
@@ -193,9 +76,17 @@ const getStatusIcon = (status) => {
   }
 };
 
+const calculateEndTime = (startTime, duration) => {
+  const [hours, minutes] = startTime.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes + duration;
+  const endHours = Math.floor(totalMinutes / 60);
+  const endMinutes = totalMinutes % 60;
+  return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+};
+
 /* ─────────────── Status Badge Component ─────────────── */
 const StatusBadge = ({ status }) => {
-  const statusLower = status.toLowerCase().replace(' ', '-');
+  const statusLower = status?.toLowerCase().replace(' ', '-') || 'scheduled';
   return (
     <span className={`calendar-status-badge status-${statusLower}`}>
       {getStatusIcon(status)} {status}
@@ -223,74 +114,91 @@ const TypeBadge = ({ type }) => {
 };
 
 /* ─────────────── Session Modal ─────────────── */
-const SessionModal = ({ session, onClose, onSave }) => {
+const SessionModal = ({ session, onClose, onSave, isSaving, students, instructors, vehicles }) => {
   const isEdit = !!session?.id;
-  const [form, setForm] = useState(
-    isEdit
-      ? { ...session }
-      : {
-          student_id: '',
-          student_name: '',
-          student_category: '',
-          instructor_id: '',
-          instructor_name: '',
-          type: 'Driving',
-          status: 'Scheduled',
-          date: new Date().toISOString().split('T')[0],
-          start_time: '09:00',
-          end_time: '10:30',
-          duration: 90,
-          vehicle_id: '',
-          vehicle_plate: '',
-          location: '',
-          notes: '',
-        },
-  );
+  const [studentType, setStudentType] = useState(session?.student_type || 'registered');
+  const [form, setForm] = useState(() => {
+    if (isEdit) {
+      return { ...session };
+    }
+    return {
+      student_id: '',
+      student_name: '',
+      student_category: 'B',
+      student_type: 'registered',
+      student_phone: '',
+      student_email: '',
+      instructor_id: '',
+      instructor_name: '',
+      type: 'Driving',
+      status: 'Scheduled',
+      date: new Date().toISOString().split('T')[0],
+      start_time: '09:00',
+      end_time: '10:30',
+      duration: 90,
+      price: 200,
+      payment_status: 'Pending',
+      vehicle_id: '',
+      vehicle_plate: '',
+      location: '',
+      notes: '',
+    };
+  });
   const [errors, setErrors] = useState({});
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const handleStudentSelect = (studentId) => {
-    const student = STUDENTS.find((s) => s.id === parseInt(studentId));
-    if (student) {
-      set('student_id', student.id);
-      set('student_name', student.name);
-      set('student_category', student.category);
+  const handleStudentTypeChange = (type) => {
+    setStudentType(type);
+    if (type === 'walkin') {
+      set('student_id', null);
+      set('student_name', '');
+      set('student_category', 'B');
+      set('student_phone', '');
+      set('student_email', '');
     } else {
       set('student_id', '');
       set('student_name', '');
-      set('student_category', '');
+      set('student_category', 'B');
+      set('student_phone', '');
+      set('student_email', '');
+    }
+  };
+
+  const handleRegisteredStudentSelect = (studentId) => {
+    const student = students?.find((s) => s.id === parseInt(studentId));
+    if (student) {
+      set('student_id', student.id);
+      set('student_name', `${student.first_name} ${student.last_name}`);
+      set('student_category', student.type);
+      set('student_phone', student.phone);
+      set('student_email', student.email);
     }
   };
 
   const handleInstructorSelect = (instructorId) => {
-    const instructor = INSTRUCTORS.find((i) => i.id === parseInt(instructorId));
+    const instructor = instructors?.find((i) => i.id === parseInt(instructorId));
     if (instructor) {
       set('instructor_id', instructor.id);
-      set('instructor_name', instructor.name);
-    } else {
-      set('instructor_id', '');
-      set('instructor_name', '');
+      set('instructor_name', `${instructor.first_name} ${instructor.last_name}`);
     }
   };
 
   const handleVehicleSelect = (vehicleId) => {
-    const vehicle = VEHICLES.find((v) => v.id === parseInt(vehicleId));
+    const vehicle = vehicles?.find((v) => v.id === parseInt(vehicleId));
     if (vehicle) {
       set('vehicle_id', vehicle.id);
       set('vehicle_plate', vehicle.plate);
     } else {
-      set('vehicle_id', '');
-      set('vehicle_plate', '');
+      set('vehicle_id', null);
+      set('vehicle_plate', null);
     }
   };
 
-  const calculateEndTime = (startTime, duration) => {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes + duration;
-    const endHours = Math.floor(totalMinutes / 60);
-    const endMinutes = totalMinutes % 60;
-    return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+  const handleTypeChange = (type) => {
+    set('type', type);
+    const price = type === 'Driving' ? 200 : 150;
+    set('price', price);
   };
 
   const handleDurationChange = (duration) => {
@@ -310,7 +218,14 @@ const SessionModal = ({ session, onClose, onSave }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.student_id) e.student_id = 'Student is required';
+
+    if (studentType === 'registered') {
+      if (!form.student_id) e.student_id = 'Student is required';
+    } else {
+      if (!form.student_name?.trim()) e.student_name = 'Student name is required';
+      if (!form.student_phone?.trim()) e.student_phone = 'Phone number is required';
+    }
+
     if (!form.instructor_id) e.instructor_id = 'Instructor is required';
     if (!form.type) e.type = 'Session type is required';
     if (!form.date) e.date = 'Date is required';
@@ -318,13 +233,42 @@ const SessionModal = ({ session, onClose, onSave }) => {
     if (!form.duration || form.duration < 30) e.duration = 'Duration must be at least 30 minutes';
     if (form.type === 'Driving' && !form.vehicle_id)
       e.vehicle_id = 'Vehicle is required for driving sessions';
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({ ...form, id: form.id || Date.now() });
+
+    const sessionData = {
+      student_id: studentType === 'registered' ? form.student_id : null,
+      student_name: form.student_name,
+      student_category: form.student_category,
+      student_type: studentType,
+      student_phone: studentType === 'walkin' ? form.student_phone : form.student_phone || null,
+      student_email: studentType === 'walkin' ? form.student_email : form.student_email || null,
+      instructor_id: form.instructor_id,
+      instructor_name: form.instructor_name,
+      type: form.type,
+      status: form.status,
+      date: form.date,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      duration: form.duration,
+      price: form.type === 'Driving' ? 200 : 150,
+      payment_status: form.payment_status,
+      vehicle_id: form.type === 'Driving' ? form.vehicle_id || null : null,
+      vehicle_plate: form.type === 'Driving' ? form.vehicle_plate || null : null,
+      location: form.location || null,
+      notes: form.notes || null,
+    };
+
+    if (isEdit) {
+      sessionData.id = form.id;
+    }
+
+    onSave(sessionData);
   };
 
   return (
@@ -349,31 +293,116 @@ const SessionModal = ({ session, onClose, onSave }) => {
         </div>
 
         <div className="calendar-modal-body">
+          {/* Student Type Selection */}
+          {!isEdit && (
+            <div className="calendar-form-section">
+              <div className="section-header">
+                <User size={14} />
+                <h4>Student Type</h4>
+              </div>
+              <div className="student-type-selector">
+                <button
+                  type="button"
+                  className={`type-btn ${studentType === 'registered' ? 'active' : ''}`}
+                  onClick={() => handleStudentTypeChange('registered')}
+                >
+                  <UserCheck size={16} />
+                  Registered Student
+                </button>
+                <button
+                  type="button"
+                  className={`type-btn ${studentType === 'walkin' ? 'active' : ''}`}
+                  onClick={() => handleStudentTypeChange('walkin')}
+                >
+                  <UserPlus size={16} />
+                  Walk-in Student
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Student Information */}
           <div className="calendar-form-section">
             <div className="section-header">
               <User size={14} />
-              <h4>Student Information</h4>
+              <h4>
+                {studentType === 'registered' ? 'Student Information' : 'Walk-in Student Details'}
+              </h4>
             </div>
-            <div className="form-row">
-              <div className="form-field">
-                <label>Student *</label>
-                <select
-                  value={form.student_id}
-                  onChange={(e) => handleStudentSelect(e.target.value)}
-                  className={errors.student_id ? 'error' : ''}
-                >
-                  <option value="">Select Student</option>
-                  {STUDENTS.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} (Cat. {s.category})
-                    </option>
-                  ))}
-                </select>
-                {errors.student_id && <span className="error-message">{errors.student_id}</span>}
+
+            {studentType === 'registered' ? (
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Select Student *</label>
+                  <select
+                    value={form.student_id || ''}
+                    onChange={(e) => handleRegisteredStudentSelect(e.target.value)}
+                    className={errors.student_id ? 'error' : ''}
+                  >
+                    <option value="">Select Student</option>
+                    {students?.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.first_name} {s.last_name} (Cat. {s.type}) - {s.phone}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.student_id && <span className="error-message">{errors.student_id}</span>}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Full Name *</label>
+                  <input
+                    type="text"
+                    value={form.student_name || ''}
+                    onChange={(e) => set('student_name', e.target.value)}
+                    placeholder="Enter student's full name"
+                    className={errors.student_name ? 'error' : ''}
+                  />
+                  {errors.student_name && (
+                    <span className="error-message">{errors.student_name}</span>
+                  )}
+                </div>
+                <div className="form-field">
+                  <label>Phone Number *</label>
+                  <input
+                    type="text"
+                    value={form.student_phone || ''}
+                    onChange={(e) => set('student_phone', e.target.value)}
+                    placeholder="Phone number"
+                    className={errors.student_phone ? 'error' : ''}
+                  />
+                  {errors.student_phone && (
+                    <span className="error-message">{errors.student_phone}</span>
+                  )}
+                </div>
+                <div className="form-field">
+                  <label>Category</label>
+                  <select
+                    value={form.student_category || 'B'}
+                    onChange={(e) => set('student_category', e.target.value)}
+                  >
+                    <option value="B">B</option>
+                    <option value="A">A</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label>Email (Optional)</label>
+                  <input
+                    type="email"
+                    value={form.student_email || ''}
+                    onChange={(e) => set('student_email', e.target.value)}
+                    placeholder="Email address"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Instructor & Session */}
           <div className="calendar-form-section">
             <div className="section-header">
               <User size={14} />
@@ -383,14 +412,14 @@ const SessionModal = ({ session, onClose, onSave }) => {
               <div className="form-field">
                 <label>Instructor *</label>
                 <select
-                  value={form.instructor_id}
+                  value={form.instructor_id || ''}
                   onChange={(e) => handleInstructorSelect(e.target.value)}
                   className={errors.instructor_id ? 'error' : ''}
                 >
                   <option value="">Select Instructor</option>
-                  {INSTRUCTORS.map((i) => (
+                  {instructors?.map((i) => (
                     <option key={i.id} value={i.id}>
-                      {i.name} ({i.type})
+                      {i.first_name} {i.last_name} ({i.type})
                     </option>
                   ))}
                 </select>
@@ -402,19 +431,17 @@ const SessionModal = ({ session, onClose, onSave }) => {
                 <label>Session Type *</label>
                 <select
                   value={form.type}
-                  onChange={(e) => set('type', e.target.value)}
+                  onChange={(e) => handleTypeChange(e.target.value)}
                   className={errors.type ? 'error' : ''}
                 >
-                  {SESSION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
+                  <option value="Driving">Driving - 200 MAD</option>
+                  <option value="Code">Code - 150 MAD</option>
                 </select>
               </div>
             </div>
           </div>
 
+          {/* Schedule */}
           <div className="calendar-form-section">
             <div className="section-header">
               <CalendarIcon size={14} />
@@ -460,6 +487,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
             </div>
           </div>
 
+          {/* Vehicle & Location */}
           <div className="calendar-form-section">
             <div className="section-header">
               <Car size={14} />
@@ -469,17 +497,19 @@ const SessionModal = ({ session, onClose, onSave }) => {
               <div className="form-field">
                 <label>Vehicle</label>
                 <select
-                  value={form.vehicle_id}
+                  value={form.vehicle_id || ''}
                   onChange={(e) => handleVehicleSelect(e.target.value)}
                   disabled={form.type !== 'Driving'}
                   className={errors.vehicle_id ? 'error' : ''}
                 >
                   <option value="">Select Vehicle</option>
-                  {VEHICLES.filter((v) => v.available || v.id === form.vehicle_id).map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.plate} - {v.model} (Cat. {v.category})
-                    </option>
-                  ))}
+                  {vehicles
+                    ?.filter((v) => v.status === 'Active' || v.id === form.vehicle_id)
+                    .map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.plate} - {v.brand} {v.model} (Cat. {v.category})
+                      </option>
+                    ))}
                 </select>
                 {errors.vehicle_id && <span className="error-message">{errors.vehicle_id}</span>}
               </div>
@@ -487,7 +517,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
                 <label>Location</label>
                 <input
                   type="text"
-                  value={form.location}
+                  value={form.location || ''}
                   onChange={(e) => set('location', e.target.value)}
                   placeholder="e.g., Driving Range A, Classroom 1"
                 />
@@ -495,6 +525,31 @@ const SessionModal = ({ session, onClose, onSave }) => {
             </div>
           </div>
 
+          {/* Payment */}
+          <div className="calendar-form-section">
+            <div className="section-header">
+              <CreditCard size={14} />
+              <h4>Payment</h4>
+            </div>
+            <div className="form-row">
+              <div className="form-field">
+                <label>Price (MAD)</label>
+                <input type="number" value={form.price} disabled readOnly />
+              </div>
+              <div className="form-field">
+                <label>Payment Status</label>
+                <select
+                  value={form.payment_status}
+                  onChange={(e) => set('payment_status', e.target.value)}
+                >
+                  <option value="Paid">Paid</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
           <div className="calendar-form-section">
             <div className="section-header">
               <FileText size={14} />
@@ -502,7 +557,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
             </div>
             <div className="form-field">
               <textarea
-                value={form.notes}
+                value={form.notes || ''}
                 onChange={(e) => set('notes', e.target.value)}
                 rows="3"
                 placeholder="Additional notes about the session..."
@@ -515,7 +570,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
           <button onClick={onClose} className="btn-cancel">
             Cancel
           </button>
-          <button onClick={handleSave} className="btn-save">
+          <button onClick={handleSave} className="btn-save" disabled={isSaving}>
+            {isSaving ? <Loader size={16} className="spinner" /> : null}
             {isEdit ? 'Save Changes' : 'Schedule Session'}
           </button>
         </div>
@@ -525,7 +581,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
 };
 
 /* ─────────────── Delete Confirm Modal ─────────────── */
-const DeleteConfirm = ({ session, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ session, onConfirm, onCancel, isDeleting }) => (
   <div className="calendar-modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -540,7 +596,8 @@ const DeleteConfirm = ({ session, onConfirm, onCancel }) => (
         <button onClick={onCancel} className="btn-cancel">
           Cancel
         </button>
-        <button onClick={onConfirm} className="btn-delete">
+        <button onClick={onConfirm} className="btn-delete" disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}
           Delete
         </button>
       </div>
@@ -551,10 +608,6 @@ const DeleteConfirm = ({ session, onConfirm, onCancel }) => (
 /* ─────────────── Session Detail Modal ─────────────── */
 const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
   if (!session) return null;
-
-  const student = getStudentById(session.student_id);
-  const instructor = getInstructorById(session.instructor_id);
-  const vehicle = getVehicleById(session.vehicle_id);
 
   return (
     <div
@@ -598,7 +651,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
               </div>
               <div className="info-row">
                 <span className="info-label">Phone</span>
-                <span className="info-value">{student?.phone || 'N/A'}</span>
+                <span className="info-value">{session.student_phone || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -615,7 +668,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
               </div>
               <div className="info-row">
                 <span className="info-label">Specialization</span>
-                <span className="info-value">{instructor?.type || 'N/A'}</span>
+                <span className="info-value">{session.instructor_type || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -664,7 +717,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
                 </div>
                 <div className="info-row">
                   <span className="info-label">Model</span>
-                  <span className="info-value">{vehicle?.model || 'N/A'}</span>
+                  <span className="info-value">{session.vehicle_model || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -721,9 +774,15 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
 
 /* ─────────────── Main Calendar Component ─────────────── */
 const Calendar = () => {
-  const [sessions, setSessions] = useState(MOCK_SESSIONS);
+  const [sessions, setSessions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [instructors, setInstructors] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewType, setViewType] = useState('month'); // 'month', 'week', 'day'
+  const [viewType, setViewType] = useState('month');
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -740,6 +799,33 @@ const Calendar = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [sessionsRes, studentsRes, instructorsRes, vehiclesRes] = await Promise.all([
+        axios.get('/sessions'),
+        axios.get('/students'),
+        axios.get('/instructors'),
+        axios.get('/vehicles'),
+      ]);
+
+      console.log('Fetched sessions:', sessionsRes.data.data); // Debug log
+
+      if (sessionsRes.data.success) setSessions(sessionsRes.data.data || []);
+      if (studentsRes.data.success) setStudents(studentsRes.data.data || []);
+      if (instructorsRes.data.success) setInstructors(instructorsRes.data.data || []);
+      if (vehiclesRes.data.success) setVehicles(vehiclesRes.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   // Get days in month
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
@@ -750,16 +836,13 @@ const Calendar = () => {
     const startingDayOfWeek = firstDay.getDay();
 
     const days = [];
-    // Add previous month days
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       const prevDate = new Date(year, month, -i);
       days.push({ date: prevDate, isCurrentMonth: false });
     }
-    // Add current month days
     for (let i = 1; i <= daysInMonth; i++) {
       days.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-    // Add next month days to complete grid
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
@@ -782,7 +865,7 @@ const Calendar = () => {
     return days;
   };
 
-  // Get hours for day view (7 AM to 8 PM)
+  // Get hours for day view
   const getHoursForDay = () => {
     const hours = [];
     for (let i = 7; i <= 20; i++) {
@@ -804,12 +887,6 @@ const Calendar = () => {
     }
 
     return filtered.sort((a, b) => a.start_time.localeCompare(b.start_time));
-  };
-
-  // Get sessions for a specific hour in day view
-  const getSessionsForHour = (date, hour) => {
-    const sessions = getSessionsForDate(date);
-    return sessions.filter((s) => s.start_time.startsWith(hour));
   };
 
   const handlePrev = () => {
@@ -845,50 +922,103 @@ const Calendar = () => {
     setShowModal(true);
   };
 
-  const handleSaveSession = (data) => {
-    const isNew = !data.id || !sessions.find((s) => s.id === data.id);
+  const handleSaveSession = async (data) => {
+    setIsSaving(true);
+    const isNew = !data.id;
 
-    if (isNew) {
-      const newSession = { ...data, id: Date.now(), created_at: new Date().toISOString() };
-      setSessions((s) => [...s, newSession]);
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/sessions', data);
+      } else {
+        response = await axios.put(`/sessions/${data.id}`, data);
+      }
 
-      // Add notification for new session
-      addNotification(
-        'New Session Scheduled',
-        `${data.student_name} has scheduled a ${data.type} session on ${data.date} at ${data.start_time}`,
-        'session',
-      );
+      if (response.data.success) {
+        // Wait for fetchData to complete
+        await fetchData();
 
-      showToast('Session scheduled successfully');
-    } else {
-      setSessions((s) => s.map((x) => (x.id === data.id ? data : x)));
-      showToast('Session updated successfully');
+        // Force a re-render by updating a state that affects the calendar view
+        // The fetchData already updates sessions state, which triggers re-render
+
+        if (isNew) {
+          addNotification(
+            'New Session Scheduled',
+            `${data.student_name} has scheduled a ${data.type} session on ${data.date} at ${data.start_time}`,
+            'session',
+          );
+          showToast('Session scheduled successfully');
+        } else {
+          showToast('Session updated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      showToast(error.response?.data?.message || 'Failed to save session', 'error');
+    } finally {
+      setIsSaving(false);
+      setShowModal(false);
+      setEditSession(null);
+      setSelectedDate(null);
     }
+  };
+  // Add this state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-    setShowModal(false);
-    setEditSession(null);
+  // Add refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    showToast('Calendar refreshed successfully');
+  };
+  const handleDeleteSession = async (id) => {
+    setIsDeleting(true);
+
+    try {
+      const response = await axios.delete(`/sessions/${id}`);
+
+      if (response.data.success) {
+        const deletedSession = sessions.find((s) => s.id === id);
+        await fetchData();
+
+        if (deletedSession) {
+          addNotification(
+            'Session Cancelled',
+            `${deletedSession.student_name}'s ${deletedSession.type} session on ${deletedSession.date} has been cancelled`,
+            'system',
+          );
+        }
+
+        showToast('Session deleted successfully', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      showToast(error.response?.data?.message || 'Failed to delete session', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setSelectedSession(null);
+    }
   };
 
-  const handleDeleteSession = (id) => {
-    const deletedSession = sessions.find((s) => s.id === id);
-    setSessions((s) => s.filter((x) => x.id !== id));
-    setDeleteTarget(null);
-    setSelectedSession(null);
+  const handlePrintReceipt = async (session) => {
+    try {
+      const response = await axios.get(`/sessions/${session.id}/receipt`, {
+        responseType: 'blob',
+      });
 
-    // Add notification for deleted session
-    if (deletedSession) {
-      addNotification(
-        'Session Cancelled',
-        `${deletedSession.student_name}'s ${deletedSession.type} session on ${deletedSession.date} has been cancelled`,
-        'system',
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
       );
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+
+      showToast(`Receipt for ${session.student_name} - ${session.type} session is ready`);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showToast('Failed to generate receipt', 'error');
     }
-
-    showToast('Session deleted', 'error');
-  };
-
-  const handlePrintReceipt = (session) => {
-    showToast(`Printing receipt for ${session.student_name} - ${session.type} session`, 'success');
   };
 
   const monthNames = [
@@ -942,13 +1072,13 @@ const Calendar = () => {
         <div className="calendar-grid">
           {days.map((day, index) => {
             const daySessions = getSessionsForDate(day.date);
-            const isSelected =
+            const isSelectedDate =
               selectedDate && day.date.toDateString() === selectedDate.toDateString();
 
             return (
               <div
                 key={index}
-                className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${isToday(day.date) ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+                className={`calendar-day ${!day.isCurrentMonth ? 'other-month' : ''} ${isToday(day.date) ? 'today' : ''} ${isSelectedDate ? 'selected' : ''}`}
                 onClick={() => handleDateClick(day.date)}
               >
                 <div className="day-number">{day.date.getDate()}</div>
@@ -985,17 +1115,21 @@ const Calendar = () => {
     return (
       <div className="week-view">
         <div className="week-header">
-          {days.map((day, index) => (
-            <div
-              key={index}
-              className={`week-day-header ${isToday(day.date) ? 'today' : ''}`}
-              onClick={() => handleDateClick(day.date)}
-            >
-              <div className="week-day-name">{weekDays[day.date.getDay()]}</div>
-              <div className="week-day-number">{day.date.getDate()}</div>
-              <div className="week-day-month">{monthNames[day.date.getMonth()].slice(0, 3)}</div>
-            </div>
-          ))}
+          {days.map((day, index) => {
+            const isSelectedDate =
+              selectedDate && day.date.toDateString() === selectedDate.toDateString();
+            return (
+              <div
+                key={index}
+                className={`week-day-header ${isToday(day.date) ? 'today' : ''} ${isSelectedDate ? 'selected' : ''}`}
+                onClick={() => handleDateClick(day.date)}
+              >
+                <div className="week-day-name">{weekDays[day.date.getDay()]}</div>
+                <div className="week-day-number">{day.date.getDate()}</div>
+                <div className="week-day-month">{monthNames[day.date.getMonth()].slice(0, 3)}</div>
+              </div>
+            );
+          })}
         </div>
         <div className="week-grid">
           {days.map((day, dayIndex) => {
@@ -1035,11 +1169,13 @@ const Calendar = () => {
   // Render Day View
   const renderDayView = () => {
     const hours = getHoursForDay();
+    const isSelectedDate =
+      selectedDate && currentDate.toDateString() === selectedDate.toDateString();
 
     return (
       <div className="day-view">
         <div className="day-header">
-          <div className="day-header-content">
+          <div className={`day-header-content ${isSelectedDate ? 'selected' : ''}`}>
             <div className="day-date">{weekDays[currentDate.getDay()]}</div>
             <div className="day-number">{currentDate.getDate()}</div>
             <div className="day-month">{monthNames[currentDate.getMonth()]}</div>
@@ -1048,7 +1184,9 @@ const Calendar = () => {
         </div>
         <div className="day-timeline">
           {hours.map((hour) => {
-            const sessionsAtHour = getSessionsForHour(currentDate, hour);
+            const sessionsAtHour = getSessionsForDate(currentDate).filter((s) =>
+              s.start_time.startsWith(hour),
+            );
             return (
               <div key={hour} className="timeline-hour">
                 <div className="hour-label">{hour}</div>
@@ -1085,6 +1223,18 @@ const Calendar = () => {
     );
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="calendar-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading calendar...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="calendar-page">
       {/* Toast Notification */}
@@ -1102,6 +1252,10 @@ const Calendar = () => {
           <p>Manage and track all driving sessions</p>
         </div>
         <div className="calendar-actions">
+          <button className="refresh-btn" onClick={handleRefresh} disabled={isRefreshing}>
+            <RefreshCw size={18} className={isRefreshing ? 'spinning' : ''} />
+            Refresh
+          </button>
           <div className="filter-group">
             <select
               className="filter-select"
@@ -1121,9 +1275,9 @@ const Calendar = () => {
               onChange={(e) => setFilterInstructor(e.target.value)}
             >
               <option value="All">All Instructors</option>
-              {INSTRUCTORS.map((i) => (
+              {instructors.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {i.name}
+                  {i.first_name} {i.last_name}
                 </option>
               ))}
             </select>
@@ -1179,7 +1333,7 @@ const Calendar = () => {
       {viewType === 'week' && renderWeekView()}
       {viewType === 'day' && renderDayView()}
 
-      {/* New Session Modal */}
+      {/* Modals */}
       {showModal && (
         <SessionModal
           session={editSession}
@@ -1189,10 +1343,13 @@ const Calendar = () => {
             setSelectedDate(null);
           }}
           onSave={handleSaveSession}
+          isSaving={isSaving}
+          students={students}
+          instructors={instructors}
+          vehicles={vehicles}
         />
       )}
 
-      {/* Session Detail Modal */}
       {selectedSession && (
         <SessionDetail
           session={selectedSession}
@@ -1207,12 +1364,12 @@ const Calendar = () => {
         />
       )}
 
-      {/* Delete Confirmation */}
       {deleteTarget && (
         <DeleteConfirm
           session={deleteTarget}
           onConfirm={() => handleDeleteSession(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
     </div>

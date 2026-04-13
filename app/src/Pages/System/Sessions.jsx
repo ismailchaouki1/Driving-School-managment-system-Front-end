@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -25,263 +25,17 @@ import {
   UserPlus,
   UserCheck,
   CreditCard,
+  Loader,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Sessions.scss';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const SESSION_TYPES = ['Code', 'Driving'];
 const SESSION_STATUSES = ['Scheduled', 'In Progress', 'Completed', 'Cancelled', 'No Show'];
-const SESSION_PRICES = {
-  Code: 150,
-  Driving: 200,
-};
-
-const INSTRUCTORS = [
-  { id: 1, name: 'Mohammed Benali', avatar: null, type: 'Code & Driving' },
-  { id: 2, name: 'Fatima Zahra', avatar: null, type: 'Driving' },
-  { id: 3, name: 'Karim Tazi', avatar: null, type: 'Code' },
-  { id: 4, name: 'Nadia Ouazzani', avatar: null, type: 'Driving' },
-  { id: 5, name: 'Hassan El Fassi', avatar: null, type: 'Simulator' },
-];
-
-const VEHICLES = [
-  { id: 1, plate: 'ABC-123', model: 'Peugeot 208', category: 'B', available: true },
-  { id: 2, plate: 'DEF-456', model: 'Renault Clio', category: 'B', available: true },
-  { id: 3, plate: 'GHI-789', model: 'Volkswagen Golf', category: 'B', available: false },
-  { id: 4, plate: 'JKL-012', model: 'Ford Focus', category: 'B', available: true },
-  { id: 5, plate: 'MNO-345', model: 'Dacia Logan', category: 'B', available: true },
-];
-
-// Registered students
-const REGISTERED_STUDENTS = [
-  {
-    id: 1,
-    name: 'Youssef Alami',
-    category: 'B',
-    phone: '0612345678',
-    email: 'youssef.alami@gmail.com',
-    isRegistered: true,
-  },
-  {
-    id: 2,
-    name: 'Fatima Benali',
-    category: 'B',
-    phone: '0698765432',
-    email: 'fatima.benali@gmail.com',
-    isRegistered: true,
-  },
-  {
-    id: 3,
-    name: 'Karim Cherkaoui',
-    category: 'C',
-    phone: '0655443322',
-    email: 'karim.ch@outlook.com',
-    isRegistered: true,
-  },
-  {
-    id: 4,
-    name: 'Nadia Tazi',
-    category: 'A',
-    phone: '0611223344',
-    email: 'nadia.tazi@gmail.com',
-    isRegistered: true,
-  },
-  {
-    id: 5,
-    name: 'Hassan Ouazzani',
-    category: 'BE',
-    phone: '0677889900',
-    email: 'hassan.o@gmail.com',
-    isRegistered: true,
-  },
-];
-
-// Walk-in students (temporary)
-const WALKIN_STUDENTS = [
-  {
-    id: 101,
-    name: 'Ahmed Mansouri',
-    category: 'B',
-    phone: '0612345699',
-    email: '',
-    isRegistered: false,
-    temporaryId: 'WALK-001',
-  },
-  {
-    id: 102,
-    name: 'Sofia Benjelloun',
-    category: 'B',
-    phone: '0698765444',
-    email: '',
-    isRegistered: false,
-    temporaryId: 'WALK-002',
-  },
-];
-
-const ALL_STUDENTS = [...REGISTERED_STUDENTS, ...WALKIN_STUDENTS];
-
-const MOCK_SESSIONS = [
-  {
-    id: 1,
-    student_id: 1,
-    student_name: 'Youssef Alami',
-    student_category: 'B',
-    student_type: 'registered',
-    instructor_id: 1,
-    instructor_name: 'Mohammed Benali',
-    type: 'Driving',
-    status: 'Scheduled',
-    date: '2025-01-20',
-    start_time: '09:00',
-    end_time: '10:30',
-    duration: 90,
-    price: 200,
-    payment_status: 'Paid',
-    vehicle_id: 1,
-    vehicle_plate: 'ABC-123',
-    location: 'Driving Range A',
-    notes: 'Focus on parallel parking',
-    created_at: '2025-01-15T10:00:00',
-  },
-  {
-    id: 2,
-    student_id: 2,
-    student_name: 'Fatima Benali',
-    student_category: 'B',
-    student_type: 'registered',
-    instructor_id: 2,
-    instructor_name: 'Fatima Zahra',
-    type: 'Code',
-    status: 'Completed',
-    date: '2025-01-18',
-    start_time: '14:00',
-    end_time: '16:00',
-    duration: 120,
-    price: 150,
-    payment_status: 'Paid',
-    vehicle_id: null,
-    vehicle_plate: null,
-    location: 'Classroom 1',
-    notes: 'Code review - passed with 85%',
-    created_at: '2025-01-10T09:00:00',
-  },
-  {
-    id: 3,
-    student_id: 3,
-    student_name: 'Karim Cherkaoui',
-    student_category: 'C',
-    student_type: 'registered',
-    instructor_id: 1,
-    instructor_name: 'Mohammed Benali',
-    type: 'Driving',
-    status: 'In Progress',
-    date: '2025-01-19',
-    start_time: '11:00',
-    end_time: '12:30',
-    duration: 90,
-    price: 200,
-    payment_status: 'Pending',
-    vehicle_id: 2,
-    vehicle_plate: 'DEF-456',
-    location: 'Highway Practice',
-    notes: 'Highway driving practice',
-    created_at: '2025-01-12T14:30:00',
-  },
-  {
-    id: 4,
-    student_id: 101,
-    student_name: 'Ahmed Mansouri',
-    student_category: 'B',
-    student_type: 'walkin',
-    instructor_id: 4,
-    instructor_name: 'Nadia Ouazzani',
-    type: 'Driving',
-    status: 'Scheduled',
-    date: '2025-01-21',
-    start_time: '15:00',
-    end_time: '16:30',
-    duration: 90,
-    price: 200,
-    payment_status: 'Paid',
-    vehicle_id: 4,
-    vehicle_plate: 'JKL-012',
-    location: 'Driving Range B',
-    notes: 'First session - walk-in student',
-    created_at: '2025-01-14T11:00:00',
-  },
-  {
-    id: 5,
-    student_id: 102,
-    student_name: 'Sofia Benjelloun',
-    student_category: 'B',
-    student_type: 'walkin',
-    instructor_id: 2,
-    instructor_name: 'Fatima Zahra',
-    type: 'Driving',
-    status: 'Scheduled',
-    date: '2025-01-22',
-    start_time: '10:00',
-    end_time: '11:30',
-    duration: 90,
-    price: 200,
-    payment_status: 'Pending',
-    vehicle_id: 1,
-    vehicle_plate: 'ABC-123',
-    location: 'Driving Range A',
-    notes: 'Walk-in student - pay on arrival',
-    created_at: '2025-01-16T08:00:00',
-  },
-];
-
-const EMPTY_FORM = {
-  student_id: '',
-  student_name: '',
-  student_category: 'B',
-  student_type: 'registered',
-  instructor_id: '',
-  instructor_name: '',
-  type: 'Driving',
-  status: 'Scheduled',
-  date: new Date().toISOString().split('T')[0],
-  start_time: '09:00',
-  end_time: '10:30',
-  duration: 90,
-  price: 200,
-  payment_status: 'Pending',
-  vehicle_id: '',
-  vehicle_plate: '',
-  location: '',
-  notes: '',
-};
-
-// Walk-in form
-const EMPTY_WALKIN_FORM = {
-  student_name: '',
-  student_category: 'B',
-  student_phone: '',
-  student_email: '',
-  instructor_id: '',
-  instructor_name: '',
-  type: 'Driving',
-  status: 'Scheduled',
-  date: new Date().toISOString().split('T')[0],
-  start_time: '09:00',
-  end_time: '10:30',
-  duration: 90,
-  price: 200,
-  payment_status: 'Pending',
-  vehicle_id: '',
-  vehicle_plate: '',
-  location: '',
-  notes: '',
-};
 
 /* ─────────────── Helper Functions ─────────────── */
-const getStudentById = (id) => ALL_STUDENTS.find((s) => s.id === id);
-const getInstructorById = (id) => INSTRUCTORS.find((i) => i.id === id);
-const getVehicleById = (id) => VEHICLES.find((v) => v.id === id);
-
 const calculateEndTime = (startTime, duration) => {
   const [hours, minutes] = startTime.split(':').map(Number);
   const totalMinutes = hours * 60 + minutes + duration;
@@ -290,12 +44,32 @@ const calculateEndTime = (startTime, duration) => {
   return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
 };
 
-const getPriceForSessionType = (type) => SESSION_PRICES[type] || 150;
+const getInitials = (name) => {
+  if (!name) return '??';
+  return name
+    .split(' ')
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+const getRandomGradient = (id) => {
+  const gradients = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
+  ];
+  return gradients[(id || 0) % gradients.length];
+};
 
 /* ─────────────── Sub-components ─────────────── */
 
 const StatusBadge = ({ status }) => {
-  const statusLower = status.toLowerCase().replace(' ', '-');
+  const statusLower = status?.toLowerCase().replace(' ', '-') || 'scheduled';
   const getIcon = () => {
     switch (status) {
       case 'Completed':
@@ -308,7 +82,7 @@ const StatusBadge = ({ status }) => {
       case 'No Show':
         return <AlertCircle size={12} />;
       default:
-        return null;
+        return <Clock size={12} />;
     }
   };
 
@@ -320,7 +94,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const PaymentStatusBadge = ({ status }) => {
-  const statusLower = status.toLowerCase();
+  const statusLower = status?.toLowerCase() || 'pending';
   return (
     <span className={`payment-status-badge payment-${statusLower}`}>
       {status === 'Paid' ? <CheckCircle size={12} /> : <Clock size={12} />}
@@ -351,28 +125,6 @@ const StudentTypeBadge = ({ type }) => {
       {type === 'registered' ? 'Registered' : 'Walk-in'}
     </span>
   );
-};
-
-const getInitials = (name) => {
-  if (!name) return '??';
-  return name
-    .split(' ')
-    .map((word) => word[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-};
-
-const getRandomGradient = (id) => {
-  const gradients = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-  ];
-  return gradients[id % gradients.length];
 };
 
 // Card Component
@@ -473,7 +225,7 @@ const SessionCard = ({ session, onEdit, onDelete, onView, onPrint }) => {
             </div>
             <div className="detail-item">
               <label>Student Phone</label>
-              <p>{getStudentById(session.student_id)?.phone || session.student_phone || 'N/A'}</p>
+              <p>{session.student_phone || 'N/A'}</p>
             </div>
             <div className="detail-item">
               <label>Payment Status</label>
@@ -490,12 +242,37 @@ const SessionCard = ({ session, onEdit, onDelete, onView, onPrint }) => {
   );
 };
 
-/* ─────────────── Session Modal with Walk-in Support ─────────────── */
-const SessionModal = ({ session, onClose, onSave }) => {
+/* ─────────────── Session Modal ─────────────── */
+const SessionModal = ({ session, onClose, onSave, isSaving, students, instructors, vehicles }) => {
   const isEdit = !!session?.id;
   const [studentType, setStudentType] = useState(session?.student_type || 'registered');
-  const [form, setForm] = useState(isEdit ? { ...session } : { ...EMPTY_FORM });
-  const [walkinForm, setWalkinForm] = useState(EMPTY_WALKIN_FORM);
+  const [form, setForm] = useState(() => {
+    if (isEdit) {
+      return { ...session };
+    }
+    return {
+      student_id: '',
+      student_name: '',
+      student_category: 'B',
+      student_type: 'registered',
+      student_phone: '',
+      student_email: '',
+      instructor_id: '',
+      instructor_name: '',
+      type: 'Driving',
+      status: 'Scheduled',
+      date: new Date().toISOString().split('T')[0],
+      start_time: '09:00',
+      end_time: '10:30',
+      duration: 90,
+      price: 200,
+      payment_status: 'Pending',
+      vehicle_id: '',
+      vehicle_plate: '',
+      location: '',
+      notes: '',
+    };
+  });
   const [errors, setErrors] = useState({});
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -503,50 +280,57 @@ const SessionModal = ({ session, onClose, onSave }) => {
   const handleStudentTypeChange = (type) => {
     setStudentType(type);
     if (type === 'walkin') {
-      set('student_id', '');
-      set('student_name', walkinForm.student_name);
-      set('student_category', walkinForm.student_category);
-    } else {
+      set('student_id', null);
       set('student_name', '');
       set('student_category', 'B');
+      set('student_phone', '');
+      set('student_email', '');
+      // Auto-set payment_status to 'Paid' for walk-in students
+      set('payment_status', 'Paid');
+    } else {
+      set('student_id', '');
+      set('student_name', '');
+      set('student_category', 'B');
+      set('student_phone', '');
+      set('student_email', '');
+      set('payment_status', 'Pending');
     }
   };
 
-  const handleWalkinChange = (field, value) => {
-    const newWalkin = { ...walkinForm, [field]: value };
-    setWalkinForm(newWalkin);
-    set('student_name', newWalkin.student_name);
-    set('student_category', newWalkin.student_category);
-  };
-
   const handleRegisteredStudentSelect = (studentId) => {
-    const student = REGISTERED_STUDENTS.find((s) => s.id === parseInt(studentId));
+    const student = students?.find((s) => s.id === parseInt(studentId));
     if (student) {
       set('student_id', student.id);
-      set('student_name', student.name);
-      set('student_category', student.category);
+      set('student_name', `${student.first_name} ${student.last_name}`);
+      set('student_category', student.type);
+      set('student_phone', student.phone);
+      set('student_email', student.email);
     }
   };
 
   const handleInstructorSelect = (instructorId) => {
-    const instructor = INSTRUCTORS.find((i) => i.id === parseInt(instructorId));
+    const instructor = instructors?.find((i) => i.id === parseInt(instructorId));
     if (instructor) {
       set('instructor_id', instructor.id);
-      set('instructor_name', instructor.name);
+      set('instructor_name', `${instructor.first_name} ${instructor.last_name}`);
     }
   };
 
   const handleVehicleSelect = (vehicleId) => {
-    const vehicle = VEHICLES.find((v) => v.id === parseInt(vehicleId));
+    const vehicle = vehicles?.find((v) => v.id === parseInt(vehicleId));
     if (vehicle) {
       set('vehicle_id', vehicle.id);
       set('vehicle_plate', vehicle.plate);
+    } else {
+      set('vehicle_id', null);
+      set('vehicle_plate', null);
     }
   };
 
   const handleTypeChange = (type) => {
     set('type', type);
-    set('price', getPriceForSessionType(type));
+    const price = type === 'Driving' ? 200 : 150;
+    set('price', price);
   };
 
   const handleDurationChange = (duration) => {
@@ -570,8 +354,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
     if (studentType === 'registered') {
       if (!form.student_id) e.student_id = 'Student is required';
     } else {
-      if (!walkinForm.student_name.trim()) e.student_name = 'Student name is required';
-      if (!walkinForm.student_phone.trim()) e.student_phone = 'Phone number is required';
+      if (!form.student_name?.trim()) e.student_name = 'Student name is required';
+      if (!form.student_phone?.trim()) e.student_phone = 'Phone number is required';
     }
 
     if (!form.instructor_id) e.instructor_id = 'Instructor is required';
@@ -589,22 +373,34 @@ const SessionModal = ({ session, onClose, onSave }) => {
   const handleSave = () => {
     if (!validate()) return;
 
-    const sessionData = { ...form };
+    const sessionData = {
+      student_id: studentType === 'registered' ? form.student_id : null,
+      student_name: form.student_name,
+      student_category: form.student_category,
+      student_type: studentType,
+      student_phone: studentType === 'walkin' ? form.student_phone : form.student_phone || null,
+      student_email: studentType === 'walkin' ? form.student_email : form.student_email || null,
+      instructor_id: form.instructor_id,
+      instructor_name: form.instructor_name,
+      type: form.type,
+      status: form.status,
+      date: form.date,
+      start_time: form.start_time,
+      end_time: form.end_time,
+      duration: form.duration,
+      price: form.type === 'Driving' ? 200 : 150,
+      payment_status: form.payment_status, // This will be 'Paid' for walk-in students
+      vehicle_id: form.type === 'Driving' ? form.vehicle_id || null : null,
+      vehicle_plate: form.type === 'Driving' ? form.vehicle_plate || null : null,
+      location: form.location || null,
+      notes: form.notes || null,
+    };
 
-    if (studentType === 'walkin') {
-      // Generate a temporary ID for walk-in student
-      const tempId = Date.now();
-      sessionData.student_id = tempId;
-      sessionData.student_type = 'walkin';
-      sessionData.student_phone = walkinForm.student_phone;
-      sessionData.student_email = walkinForm.student_email;
-    } else {
-      sessionData.student_type = 'registered';
+    if (isEdit) {
+      sessionData.id = form.id;
     }
 
-    sessionData.price = getPriceForSessionType(sessionData.type);
-
-    onSave({ ...sessionData, id: sessionData.id || Date.now() });
+    onSave(sessionData);
   };
 
   return (
@@ -668,14 +464,14 @@ const SessionModal = ({ session, onClose, onSave }) => {
                 <div className="form-field">
                   <label>Select Student *</label>
                   <select
-                    value={form.student_id}
+                    value={form.student_id || ''}
                     onChange={(e) => handleRegisteredStudentSelect(e.target.value)}
                     className={errors.student_id ? 'error' : ''}
                   >
                     <option value="">Select Student</option>
-                    {REGISTERED_STUDENTS.map((s) => (
+                    {students?.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name} (Cat. {s.category}) - {s.phone}
+                        {s.first_name} {s.last_name} (Cat. {s.type}) - {s.phone}
                       </option>
                     ))}
                   </select>
@@ -688,8 +484,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                   <label>Full Name *</label>
                   <input
                     type="text"
-                    value={walkinForm.student_name}
-                    onChange={(e) => handleWalkinChange('student_name', e.target.value)}
+                    value={form.student_name || ''}
+                    onChange={(e) => set('student_name', e.target.value)}
                     placeholder="Enter student's full name"
                     className={errors.student_name ? 'error' : ''}
                   />
@@ -701,8 +497,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                   <label>Phone Number *</label>
                   <input
                     type="text"
-                    value={walkinForm.student_phone}
-                    onChange={(e) => handleWalkinChange('student_phone', e.target.value)}
+                    value={form.student_phone || ''}
+                    onChange={(e) => set('student_phone', e.target.value)}
                     placeholder="Phone number"
                     className={errors.student_phone ? 'error' : ''}
                   />
@@ -713,8 +509,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                 <div className="form-field">
                   <label>Category</label>
                   <select
-                    value={walkinForm.student_category}
-                    onChange={(e) => handleWalkinChange('student_category', e.target.value)}
+                    value={form.student_category || 'B'}
+                    onChange={(e) => set('student_category', e.target.value)}
                   >
                     <option value="B">B</option>
                     <option value="A">A</option>
@@ -726,8 +522,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                   <label>Email (Optional)</label>
                   <input
                     type="email"
-                    value={walkinForm.student_email}
-                    onChange={(e) => handleWalkinChange('student_email', e.target.value)}
+                    value={form.student_email || ''}
+                    onChange={(e) => set('student_email', e.target.value)}
                     placeholder="Email address"
                   />
                 </div>
@@ -745,14 +541,14 @@ const SessionModal = ({ session, onClose, onSave }) => {
               <div className="form-field">
                 <label>Instructor *</label>
                 <select
-                  value={form.instructor_id}
+                  value={form.instructor_id || ''}
                   onChange={(e) => handleInstructorSelect(e.target.value)}
                   className={errors.instructor_id ? 'error' : ''}
                 >
                   <option value="">Select Instructor</option>
-                  {INSTRUCTORS.map((i) => (
+                  {instructors?.map((i) => (
                     <option key={i.id} value={i.id}>
-                      {i.name} ({i.type})
+                      {i.first_name} {i.last_name} ({i.type})
                     </option>
                   ))}
                 </select>
@@ -767,11 +563,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                   onChange={(e) => handleTypeChange(e.target.value)}
                   className={errors.type ? 'error' : ''}
                 >
-                  {SESSION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t} - {getPriceForSessionType(t)} MAD
-                    </option>
-                  ))}
+                  <option value="Driving">Driving - 200 MAD</option>
+                  <option value="Code">Code - 150 MAD</option>
                 </select>
               </div>
             </div>
@@ -833,17 +626,19 @@ const SessionModal = ({ session, onClose, onSave }) => {
               <div className="form-field">
                 <label>Vehicle</label>
                 <select
-                  value={form.vehicle_id}
+                  value={form.vehicle_id || ''}
                   onChange={(e) => handleVehicleSelect(e.target.value)}
                   disabled={form.type !== 'Driving'}
                   className={errors.vehicle_id ? 'error' : ''}
                 >
                   <option value="">Select Vehicle</option>
-                  {VEHICLES.filter((v) => v.available || v.id === form.vehicle_id).map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.plate} - {v.model} (Cat. {v.category})
-                    </option>
-                  ))}
+                  {vehicles
+                    ?.filter((v) => v.status === 'Active' || v.id === form.vehicle_id)
+                    .map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.plate} - {v.brand} {v.model} (Cat. {v.category})
+                      </option>
+                    ))}
                 </select>
                 {errors.vehicle_id && <span className="error-message">{errors.vehicle_id}</span>}
               </div>
@@ -851,7 +646,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
                 <label>Location</label>
                 <input
                   type="text"
-                  value={form.location}
+                  value={form.location || ''}
                   onChange={(e) => set('location', e.target.value)}
                   placeholder="e.g., Driving Range A, Classroom 1"
                 />
@@ -876,8 +671,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
                   value={form.payment_status}
                   onChange={(e) => set('payment_status', e.target.value)}
                 >
-                  <option value="Paid">Paid</option>
-                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid (Creates payment record)</option>
+                  <option value="Pending">Pending (No payment record)</option>
                 </select>
               </div>
             </div>
@@ -891,7 +686,7 @@ const SessionModal = ({ session, onClose, onSave }) => {
             </div>
             <div className="form-field">
               <textarea
-                value={form.notes}
+                value={form.notes || ''}
                 onChange={(e) => set('notes', e.target.value)}
                 rows="3"
                 placeholder="Additional notes about the session..."
@@ -904,7 +699,8 @@ const SessionModal = ({ session, onClose, onSave }) => {
           <button onClick={onClose} className="btn-cancel">
             Cancel
           </button>
-          <button onClick={handleSave} className="btn-save">
+          <button onClick={handleSave} className="btn-save" disabled={isSaving}>
+            {isSaving ? <Loader size={16} className="spinner" /> : null}
             {isEdit ? 'Save Changes' : 'Schedule Session'}
           </button>
         </div>
@@ -916,10 +712,6 @@ const SessionModal = ({ session, onClose, onSave }) => {
 /* ─────────────── Session Detail Drawer ─────────────── */
 const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
   if (!session) return null;
-
-  const student = getStudentById(session.student_id);
-  const instructor = getInstructorById(session.instructor_id);
-  const vehicle = getVehicleById(session.vehicle_id);
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -960,7 +752,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
               </div>
               <div className="info-row">
                 <span className="info-label">Phone</span>
-                <span className="info-value">{student?.phone || 'N/A'}</span>
+                <span className="info-value">{session.student_phone || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -977,7 +769,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
               </div>
               <div className="info-row">
                 <span className="info-label">Specialization</span>
-                <span className="info-value">{instructor?.type || 'N/A'}</span>
+                <span className="info-value">{session.instructor_type || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -1026,7 +818,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
                 </div>
                 <div className="info-row">
                   <span className="info-label">Model</span>
-                  <span className="info-value">{vehicle?.model || 'N/A'}</span>
+                  <span className="info-value">{session.vehicle_model || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -1082,7 +874,7 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
 };
 
 /* ─────────────── Delete Confirm ─────────────── */
-const DeleteConfirm = ({ session, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ session, onConfirm, onCancel, isDeleting }) => (
   <div className="modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -1097,8 +889,9 @@ const DeleteConfirm = ({ session, onConfirm, onCancel }) => (
         <button onClick={onCancel} className="btn-cancel">
           Cancel
         </button>
-        <button onClick={onConfirm} className="btn-delete">
-          Delete
+        <button onClick={onConfirm} className="btn-delete" disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}
+          Delete Session
         </button>
       </div>
     </div>
@@ -1123,7 +916,14 @@ const KpiCard = ({ icon, label, value, trend, trendValue }) => (
 
 /* ─────────────── Main Component ─────────────── */
 const Sessions = () => {
-  const [sessions, setSessions] = useState(MOCK_SESSIONS);
+  const [sessions, setSessions] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [instructors, setInstructors] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -1145,6 +945,34 @@ const Sessions = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Fetch all data
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [sessionsRes, studentsRes, instructorsRes, vehiclesRes] = await Promise.all([
+        axios.get('/sessions'),
+        axios.get('/students'),
+        axios.get('/instructors'),
+        axios.get('/vehicles'),
+      ]);
+
+      if (sessionsRes.data.success) setSessions(sessionsRes.data.data || []);
+      if (studentsRes.data.success) setStudents(studentsRes.data.data || []);
+      if (instructorsRes.data.success) setInstructors(instructorsRes.data.data || []);
+      if (vehiclesRes.data.success) setVehicles(vehiclesRes.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      showToast('Failed to load sessions', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Filter and sort sessions
   const filtered = useMemo(() => {
     let s = [...sessions];
 
@@ -1164,21 +992,28 @@ const Sessions = () => {
     if (dateRange.end) s = s.filter((x) => x.date <= dateRange.end);
 
     s.sort((a, b) => {
-      const va = a[sortField],
-        vb = b[sortField];
+      let va = a[sortField];
+      let vb = b[sortField];
+
       if (sortField === 'date' || sortField === 'start_time') {
         const compareA = sortField === 'date' ? a.date : `${a.date} ${a.start_time}`;
         const compareB = sortField === 'date' ? b.date : `${b.date} ${b.start_time}`;
         return sortDir === 'asc' ? (compareA > compareB ? 1 : -1) : compareA < compareB ? 1 : -1;
       }
+
+      if (typeof va === 'string') {
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
       return sortDir === 'asc' ? (va > vb ? 1 : -1) : va < vb ? 1 : -1;
     });
+
     return s;
   }, [sessions, search, filterType, filterStatus, filterInstructor, sortField, sortDir, dateRange]);
 
   const toggleSort = (field) => {
-    if (sortField === field) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
       setSortField(field);
       setSortDir('asc');
     }
@@ -1193,57 +1028,164 @@ const Sessions = () => {
     );
   };
 
-  const handleSave = (data) => {
-    const isNew = !data.id || !sessions.find((s) => s.id === data.id);
+  // Create or update session
+  const handleSave = async (data) => {
+    setIsSaving(true);
+    const isNew = !data.id;
+    console.log('Saving session data:', data);
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/sessions', data);
+      } else {
+        response = await axios.put(`/sessions/${data.id}`, data);
+      }
+      console.log('Server response:', response.data);
+      if (response.data.success) {
+        await fetchData();
 
-    if (isNew) {
-      const newSession = { ...data, id: Date.now(), created_at: new Date().toISOString() };
-      setSessions((s) => [...s, newSession]);
-
-      // Add notification for new session
-      const studentName = data.student_name;
-      const sessionType = data.type;
-      const sessionDate = data.date;
-      const sessionTime = data.start_time;
-
-      addNotification(
-        'New Session Scheduled',
-        `${studentName} has scheduled a ${sessionType} session on ${sessionDate} at ${sessionTime}`,
-        'session',
-      );
-
-      showToast('Session scheduled successfully');
-    } else {
-      setSessions((s) => s.map((x) => (x.id === data.id ? data : x)));
-      showToast('Session updated successfully');
+        if (isNew) {
+          addNotification(
+            'New Session Scheduled',
+            `${data.student_name} has scheduled a ${data.type} session on ${data.date} at ${data.start_time}`,
+            'session',
+          );
+          showToast('Session scheduled successfully');
+        } else {
+          showToast('Session updated successfully');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      showToast(error.response?.data?.message || 'Failed to save session', 'error');
+      console.error('Error response:', error.response?.data);
+    } finally {
+      setIsSaving(false);
+      setModal(null);
+      setEditSession(null);
     }
-
-    setModal(null);
-    setEditSession(null);
   };
 
-  const handleDelete = (id) => {
-    const deletedSession = sessions.find((s) => s.id === id);
-    setSessions((s) => s.filter((x) => x.id !== id));
-    setDeleteTarget(null);
-    setDetailSession(null);
+  // Delete session
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
 
-    // Add notification for deleted session
-    if (deletedSession) {
-      addNotification(
-        'Session Cancelled',
-        `${deletedSession.student_name}'s ${deletedSession.type} session on ${deletedSession.date} has been cancelled`,
-        'system',
-      );
+    try {
+      const response = await axios.delete(`/sessions/${id}`);
+
+      if (response.data.success) {
+        const deletedSession = sessions.find((s) => s.id === id);
+        await fetchData();
+
+        if (deletedSession) {
+          addNotification(
+            'Session Cancelled',
+            `${deletedSession.student_name}'s ${deletedSession.type} session on ${deletedSession.date} has been cancelled`,
+            'system',
+          );
+        }
+
+        showToast('Session deleted successfully', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      showToast(error.response?.data?.message || 'Failed to delete session', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setDetailSession(null);
     }
-
-    showToast('Session deleted', 'error');
   };
 
-  const handlePrintReceipt = (session) => {
-    showToast(`Printing receipt for ${session.student_name} - ${session.type} session`, 'success');
+  // Export handlers
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== 'All') params.append('type', filterType);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (filterInstructor !== 'All') params.append('instructor_id', filterInstructor);
+      if (dateRange.start) params.append('start_date', dateRange.start);
+      if (dateRange.end) params.append('end_date', dateRange.end);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/sessions/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sessions_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export Excel file', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterType !== 'All') params.append('type', filterType);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (filterInstructor !== 'All') params.append('instructor_id', filterInstructor);
+      if (dateRange.start) params.append('start_date', dateRange.start);
+      if (dateRange.end) params.append('end_date', dateRange.end);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/sessions/export/pdf?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `sessions_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export PDF file', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handlePrintReceipt = async (session) => {
+    try {
+      const response = await axios.get(`/sessions/${session.id}/receipt`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      window.open(url, '_blank');
+      window.URL.revokeObjectURL(url);
+
+      showToast(`Receipt for ${session.student_name} - ${session.type} session is ready`);
+    } catch (error) {
+      console.error('Print failed:', error);
+      showToast('Failed to generate receipt', 'error');
+    }
+  };
+
+  // Calculate KPIs
   const total = sessions.length;
   const completed = sessions.filter((s) => s.status === 'Completed').length;
   const scheduled = sessions.filter((s) => s.status === 'Scheduled').length;
@@ -1251,10 +1193,22 @@ const Sessions = () => {
     (s) => s.status === 'Scheduled' && s.date >= new Date().toISOString().split('T')[0],
   ).length;
   const totalRevenue = sessions.reduce(
-    (acc, s) => acc + (s.payment_status === 'Paid' ? s.price : 0),
+    (acc, s) => acc + (s.payment_status === 'Paid' ? Number(s.price) : 0),
     0,
   );
   const walkinSessions = sessions.filter((s) => s.student_type === 'walkin').length;
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="sessions-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading sessions...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sessions-page">
@@ -1359,9 +1313,9 @@ const Sessions = () => {
           onChange={(e) => setFilterInstructor(e.target.value)}
         >
           <option value="All">All Instructors</option>
-          {INSTRUCTORS.map((i) => (
+          {instructors.map((i) => (
             <option key={i.id} value={i.id}>
-              {i.name}
+              {i.first_name} {i.last_name}
             </option>
           ))}
         </select>
@@ -1381,12 +1335,14 @@ const Sessions = () => {
           placeholder="End Date"
         />
 
-        <button className="btn-export" onClick={() => showToast('Excel export coming soon')}>
-          <Download size={15} /> Excel
+        <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
+          Excel
         </button>
 
-        <button className="btn-export" onClick={() => showToast('PDF export coming soon')}>
-          <FileText size={15} /> PDF
+        <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />}
+          PDF
         </button>
 
         <button
@@ -1429,7 +1385,6 @@ const Sessions = () => {
           )}
         </div>
       ) : (
-        /* Table View */
         <div className="table-container">
           <div className="table-header">
             <h3>
@@ -1445,34 +1400,19 @@ const Sessions = () => {
               <thead>
                 <tr>
                   <th onClick={() => toggleSort('date')}>
-                    Date/Time{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="date" />
-                    </span>
+                    Date/Time <SortIcon field="date" />
                   </th>
                   <th onClick={() => toggleSort('student_name')}>
-                    Student{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="student_name" />
-                    </span>
+                    Student <SortIcon field="student_name" />
                   </th>
                   <th onClick={() => toggleSort('type')}>
-                    Type{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="type" />
-                    </span>
+                    Type <SortIcon field="type" />
                   </th>
                   <th onClick={() => toggleSort('instructor_name')}>
-                    Instructor{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="instructor_name" />
-                    </span>
+                    Instructor <SortIcon field="instructor_name" />
                   </th>
                   <th onClick={() => toggleSort('status')}>
-                    Status{' '}
-                    <span className="sort-icon">
-                      <SortIcon field="status" />
-                    </span>
+                    Status <SortIcon field="status" />
                   </th>
                   <th>Vehicle</th>
                   <th>Actions</th>
@@ -1579,6 +1519,10 @@ const Sessions = () => {
             setEditSession(null);
           }}
           onSave={handleSave}
+          isSaving={isSaving}
+          students={students}
+          instructors={instructors}
+          vehicles={vehicles}
         />
       )}
 
@@ -1601,6 +1545,7 @@ const Sessions = () => {
           session={deleteTarget}
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
     </div>

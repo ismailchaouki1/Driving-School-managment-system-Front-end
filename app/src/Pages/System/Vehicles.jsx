@@ -1,5 +1,5 @@
 // Pages/System/Vehicles.jsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   Search,
   Plus,
@@ -38,10 +38,13 @@ import {
   Bell,
   FileCheck,
   Truck,
+  Loader,
 } from 'lucide-react';
+import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Vehicles.scss';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const CATEGORIES = ['B', 'A', 'A1', 'C', 'D', 'BE'];
 const VEHICLE_STATUSES = ['Active', 'Maintenance', 'Inactive', 'Out of Service'];
 const FUEL_TYPES = ['Gasoline', 'Diesel', 'Electric', 'Hybrid', 'LPG'];
@@ -55,222 +58,6 @@ const MAINTENANCE_TYPES = [
   'Battery Replacement',
   'Inspection',
   'Other',
-];
-
-const MOCK_VEHICLES = [
-  {
-    id: 1,
-    brand: 'Dacia',
-    model: 'Sandero',
-    year: 2022,
-    plate: '12345-A-1',
-    vin: 'VF1ABCDE123456789',
-    category: 'B',
-    fuel: 'Gasoline',
-    transmission: 'Manual',
-    color: '#e74c3c',
-    status: 'Active',
-    mileage: 34200,
-    last_maintenance: '2025-01-15',
-    next_maintenance: '2025-07-15',
-    insurance_expiry: '2025-12-31',
-    insurance_provider: 'AXA Assurance',
-    insurance_policy: 'AXA-2025-001',
-    technical_inspection: '2025-10-20',
-    registration_expiry: '2025-11-30',
-    assigned_instructor: 'Mohammed Rami',
-    sessions_count: 142,
-    purchase_price: 120000,
-    current_value: 85000,
-    fuel_efficiency: 6.5,
-    notes: 'Primary training vehicle for category B',
-    images: [],
-    documents: [],
-    maintenance_history: [
-      {
-        id: 1,
-        date: '2025-01-15',
-        type: 'Oil Change',
-        mileage: 32500,
-        cost: 450,
-        notes: 'Regular oil change with synthetic oil',
-      },
-      {
-        id: 2,
-        date: '2024-10-10',
-        type: 'Tire Rotation',
-        mileage: 28900,
-        cost: 200,
-        notes: 'Tires rotated and balanced',
-      },
-    ],
-    incidents: [],
-  },
-  {
-    id: 2,
-    brand: 'Renault',
-    model: 'Clio',
-    year: 2021,
-    plate: '67890-B-2',
-    vin: 'VF2BCDEF234567890',
-    category: 'B',
-    fuel: 'Diesel',
-    transmission: 'Manual',
-    color: '#3498db',
-    status: 'Active',
-    mileage: 52100,
-    last_maintenance: '2025-02-20',
-    next_maintenance: '2025-08-20',
-    insurance_expiry: '2025-11-30',
-    insurance_provider: 'Wafa Assurance',
-    insurance_policy: 'WAFA-2025-045',
-    technical_inspection: '2025-09-15',
-    registration_expiry: '2025-10-31',
-    assigned_instructor: 'Sara Filali',
-    sessions_count: 218,
-    purchase_price: 135000,
-    current_value: 92000,
-    fuel_efficiency: 5.2,
-    notes: 'Fuel-efficient vehicle for long distance training',
-    images: [],
-    documents: [],
-    maintenance_history: [
-      { id: 1, date: '2025-02-20', type: 'Oil Change', mileage: 51200, cost: 480, notes: '' },
-      {
-        id: 2,
-        date: '2024-12-05',
-        type: 'Brake Service',
-        mileage: 46800,
-        cost: 1200,
-        notes: 'Front brake pads replaced',
-      },
-    ],
-    incidents: [],
-  },
-  {
-    id: 3,
-    brand: 'Honda',
-    model: 'CB500',
-    year: 2023,
-    plate: '11223-C-3',
-    vin: 'VF3CDEFG345678901',
-    category: 'A',
-    fuel: 'Gasoline',
-    transmission: 'Manual',
-    color: '#2ecc71',
-    status: 'Active',
-    mileage: 12400,
-    last_maintenance: '2025-03-01',
-    next_maintenance: '2025-09-01',
-    insurance_expiry: '2026-01-31',
-    insurance_provider: 'CNIA Saada',
-    insurance_policy: 'CNIA-2026-078',
-    technical_inspection: '2025-11-10',
-    registration_expiry: '2026-01-15',
-    assigned_instructor: 'Youssef Kadiri',
-    sessions_count: 67,
-    purchase_price: 85000,
-    current_value: 75000,
-    fuel_efficiency: 4.2,
-    notes: 'Motorcycle category A',
-    images: [],
-    documents: [],
-    maintenance_history: [],
-    incidents: [],
-  },
-  {
-    id: 4,
-    brand: 'Mercedes',
-    model: 'Actros',
-    year: 2020,
-    plate: '44556-D-4',
-    vin: 'VF4DEFGH456789012',
-    category: 'C',
-    fuel: 'Diesel',
-    transmission: 'Manual',
-    color: '#95a5a6',
-    status: 'Maintenance',
-    mileage: 98000,
-    last_maintenance: '2025-04-01',
-    next_maintenance: '2025-04-30',
-    insurance_expiry: '2025-09-15',
-    insurance_provider: 'Alliance Assurance',
-    insurance_policy: 'ALL-2025-112',
-    technical_inspection: '2025-08-05',
-    registration_expiry: '2025-09-20',
-    assigned_instructor: 'Hassan Boulal',
-    sessions_count: 89,
-    purchase_price: 450000,
-    current_value: 320000,
-    fuel_efficiency: 18.5,
-    notes: 'Heavy vehicle, scheduled oil change',
-    images: [],
-    documents: [],
-    maintenance_history: [],
-    incidents: [],
-  },
-  {
-    id: 5,
-    brand: 'Peugeot',
-    model: '208',
-    year: 2023,
-    plate: '99887-E-5',
-    vin: 'VF5EFGHI567890123',
-    category: 'B',
-    fuel: 'Electric',
-    transmission: 'Automatic',
-    color: '#9b59b6',
-    status: 'Active',
-    mileage: 8900,
-    last_maintenance: '2025-03-20',
-    next_maintenance: '2025-09-20',
-    insurance_expiry: '2026-03-31',
-    insurance_provider: 'Sanad Assurance',
-    insurance_policy: 'SAN-2026-089',
-    technical_inspection: '2025-12-01',
-    registration_expiry: '2026-02-28',
-    assigned_instructor: 'Fatima Zahra',
-    sessions_count: 44,
-    purchase_price: 210000,
-    current_value: 195000,
-    fuel_efficiency: 0,
-    notes: 'Electric vehicle for eco-driving sessions',
-    images: [],
-    documents: [],
-    maintenance_history: [],
-    incidents: [],
-  },
-  {
-    id: 6,
-    brand: 'Toyota',
-    model: 'Hilux',
-    year: 2019,
-    plate: '33445-F-6',
-    vin: 'VF6FGHIJ678901234',
-    category: 'BE',
-    fuel: 'Diesel',
-    transmission: 'Manual',
-    color: '#e67e22',
-    status: 'Inactive',
-    mileage: 145000,
-    last_maintenance: '2024-11-10',
-    next_maintenance: '2025-05-10',
-    insurance_expiry: '2025-06-30',
-    insurance_provider: 'AXA Assurance',
-    insurance_policy: 'AXA-2024-567',
-    technical_inspection: '2024-12-15',
-    registration_expiry: '2025-05-20',
-    assigned_instructor: 'N/A',
-    sessions_count: 312,
-    purchase_price: 280000,
-    current_value: 150000,
-    fuel_efficiency: 12.5,
-    notes: 'Awaiting renewal of registration',
-    images: [],
-    documents: [],
-    maintenance_history: [],
-    incidents: [],
-  },
 ];
 
 const EMPTY_FORM = {
@@ -326,7 +113,7 @@ const SortIcon = ({ field, sortField, sortDir }) => {
 };
 
 /* ── Maintenance Record Modal ── */
-const MaintenanceModal = ({ vehicle, onClose, onSave }) => {
+const MaintenanceModal = ({ vehicle, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     type: MAINTENANCE_TYPES[0],
@@ -432,8 +219,9 @@ const MaintenanceModal = ({ vehicle, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <CheckCircle size={15} /> Add Record
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <CheckCircle size={15} />}
+            Add Record
           </button>
         </div>
       </div>
@@ -442,7 +230,7 @@ const MaintenanceModal = ({ vehicle, onClose, onSave }) => {
 };
 
 /* ── Document Upload Modal ── */
-const DocumentModal = ({ vehicle, onClose, onSave }) => {
+const DocumentModal = ({ vehicle, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState({
     name: '',
     type: 'Insurance',
@@ -546,8 +334,9 @@ const DocumentModal = ({ vehicle, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <Upload size={15} /> Upload Document
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <Upload size={15} />}
+            Upload Document
           </button>
         </div>
       </div>
@@ -556,7 +345,7 @@ const DocumentModal = ({ vehicle, onClose, onSave }) => {
 };
 
 /* ── Incident Report Modal ── */
-const IncidentModal = ({ vehicle, onClose, onSave }) => {
+const IncidentModal = ({ vehicle, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'Accident',
@@ -656,8 +445,9 @@ const IncidentModal = ({ vehicle, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <AlertTriangle size={15} /> Report Incident
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <AlertTriangle size={15} />}
+            Report Incident
           </button>
         </div>
       </div>
@@ -675,6 +465,8 @@ const VehicleCard = ({
   onDocument,
   onIncident,
 }) => {
+  const mileage = Number(vehicle.mileage) || 0;
+  const sessionsCount = Number(vehicle.sessions_count) || 0;
   const daysToMaintenance = vehicle.next_maintenance
     ? Math.ceil((new Date(vehicle.next_maintenance) - new Date()) / 86400000)
     : null;
@@ -713,7 +505,7 @@ const VehicleCard = ({
           </div>
           <div className="meta-item">
             <Gauge size={13} />
-            <span>{vehicle.mileage.toLocaleString()} km</span>
+            <span>{mileage.toLocaleString()} km</span>
           </div>
           <div className="meta-item">
             <Shield size={13} />
@@ -748,7 +540,7 @@ const VehicleCard = ({
         </div>
 
         <div className="sessions-count">
-          <span>{vehicle.sessions_count}</span>
+          <span>{sessionsCount}</span>
           <span className="sessions-label">sessions completed</span>
         </div>
       </div>
@@ -802,7 +594,7 @@ const VehicleCard = ({
 };
 
 /* ── Vehicle Modal (Add / Edit) ── */
-const VehicleModal = ({ vehicle, onClose, onSave }) => {
+const VehicleModal = ({ vehicle, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState(vehicle ? { ...vehicle } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
 
@@ -810,9 +602,9 @@ const VehicleModal = ({ vehicle, onClose, onSave }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.brand.trim()) e.brand = 'Brand is required';
-    if (!form.model.trim()) e.model = 'Model is required';
-    if (!form.plate.trim()) e.plate = 'Plate number is required';
+    if (!form.brand?.trim()) e.brand = 'Brand is required';
+    if (!form.model?.trim()) e.model = 'Model is required';
+    if (!form.plate?.trim()) e.plate = 'Plate number is required';
     if (!form.year || form.year < 1990 || form.year > new Date().getFullYear() + 1)
       e.year = 'Enter a valid year';
     setErrors(e);
@@ -1119,8 +911,8 @@ const VehicleModal = ({ vehicle, onClose, onSave }) => {
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit}>
-            <CheckCircle size={15} />
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? <Loader size={15} className="spinner" /> : <CheckCircle size={15} />}
             {vehicle ? 'Save Changes' : 'Add Vehicle'}
           </button>
         </div>
@@ -1140,6 +932,12 @@ const VehicleDetail = ({
   onAddIncident,
 }) => {
   const [activeTab, setActiveTab] = useState('details');
+  const mileage = Number(vehicle.mileage) || 0;
+  const sessionsCount = Number(vehicle.sessions_count) || 0;
+  const purchasePrice = Number(vehicle.purchase_price) || 0;
+  const currentValue = Number(vehicle.current_value) || 0;
+  const fuelEfficiency = Number(vehicle.fuel_efficiency) || 0;
+
   const daysToMaint = vehicle.next_maintenance
     ? Math.ceil((new Date(vehicle.next_maintenance) - new Date()) / 86400000)
     : null;
@@ -1253,17 +1051,15 @@ const VehicleDetail = ({
                   <div className="detail-rows">
                     <div className="detail-row">
                       <span>Current Mileage</span>
-                      <strong>{vehicle.mileage.toLocaleString()} km</strong>
+                      <strong>{mileage.toLocaleString()} km</strong>
                     </div>
                     <div className="detail-row">
                       <span>Total Sessions</span>
-                      <strong>{vehicle.sessions_count}</strong>
+                      <strong>{sessionsCount}</strong>
                     </div>
                     <div className="detail-row">
                       <span>Fuel Efficiency</span>
-                      <strong>
-                        {vehicle.fuel_efficiency ? `${vehicle.fuel_efficiency} L/100km` : '—'}
-                      </strong>
+                      <strong>{fuelEfficiency > 0 ? `${fuelEfficiency} L/100km` : '—'}</strong>
                     </div>
                     <div className="detail-row">
                       <span>Assigned Instructor</span>
@@ -1280,24 +1076,20 @@ const VehicleDetail = ({
                     <div className="detail-row">
                       <span>Purchase Price</span>
                       <strong>
-                        {vehicle.purchase_price
-                          ? `${vehicle.purchase_price.toLocaleString()} MAD`
-                          : '—'}
+                        {purchasePrice > 0 ? `${purchasePrice.toLocaleString()} MAD` : '—'}
                       </strong>
                     </div>
                     <div className="detail-row">
                       <span>Current Value</span>
                       <strong>
-                        {vehicle.current_value
-                          ? `${vehicle.current_value.toLocaleString()} MAD`
-                          : '—'}
+                        {currentValue > 0 ? `${currentValue.toLocaleString()} MAD` : '—'}
                       </strong>
                     </div>
                     <div className="detail-row">
                       <span>Depreciation</span>
                       <strong>
-                        {vehicle.purchase_price && vehicle.current_value
-                          ? `${Math.round((1 - vehicle.current_value / vehicle.purchase_price) * 100)}%`
+                        {purchasePrice > 0 && currentValue > 0
+                          ? `${Math.round((1 - currentValue / purchasePrice) * 100)}%`
                           : '—'}
                       </strong>
                     </div>
@@ -1405,8 +1197,10 @@ const VehicleDetail = ({
                       <tr key={record.id}>
                         <td>{record.date}</td>
                         <td>{record.type}</td>
-                        <td>{record.mileage.toLocaleString()} km</td>
-                        <td>{record.cost ? `${record.cost.toLocaleString()} MAD` : '—'}</td>
+                        <td>{(Number(record.mileage) || 0).toLocaleString()} km</td>
+                        <td>
+                          {record.cost ? `${(Number(record.cost) || 0).toLocaleString()} MAD` : '—'}
+                        </td>
                         <td>{record.notes || '—'}</td>
                       </tr>
                     ))}
@@ -1475,7 +1269,9 @@ const VehicleDetail = ({
                       <div className="incident-description">{incident.description}</div>
                       <div className="incident-meta">
                         {incident.reported_by && <span>Reported by: {incident.reported_by}</span>}
-                        {incident.cost && <span>Cost: {incident.cost.toLocaleString()} MAD</span>}
+                        {incident.cost && (
+                          <span>Cost: {(Number(incident.cost) || 0).toLocaleString()} MAD</span>
+                        )}
                         <span className={`incident-status ${incident.resolved ? 'resolved' : ''}`}>
                           {incident.resolved ? 'Resolved' : 'Open'}
                         </span>
@@ -1502,7 +1298,7 @@ const VehicleDetail = ({
 };
 
 /* ── Delete Confirm ── */
-const DeleteConfirm = ({ vehicle, onConfirm, onCancel }) => (
+const DeleteConfirm = ({ vehicle, onConfirm, onCancel, isDeleting }) => (
   <div className="modal-overlay">
     <div className="delete-confirm-modal">
       <div className="delete-icon">
@@ -1520,7 +1316,8 @@ const DeleteConfirm = ({ vehicle, onConfirm, onCancel }) => (
         <button className="btn-cancel" onClick={onCancel}>
           Cancel
         </button>
-        <button className="btn-delete" onClick={onConfirm}>
+        <button className="btn-delete" onClick={onConfirm} disabled={isDeleting}>
+          {isDeleting ? <Loader size={16} className="spinner" /> : null}
           Delete Vehicle
         </button>
       </div>
@@ -1539,7 +1336,11 @@ const Toast = ({ toast }) =>
 
 /* ─────────────── Main Component ─────────────── */
 const Vehicles = () => {
-  const [vehicles, setVehicles] = useState(MOCK_VEHICLES);
+  const [vehicles, setVehicles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -1554,37 +1355,80 @@ const Vehicles = () => {
   const [maintenanceTarget, setMaintenanceTarget] = useState(null);
   const [documentTarget, setDocumentTarget] = useState(null);
   const [incidentTarget, setIncidentTarget] = useState(null);
+  const [isMaintenanceSaving, setIsMaintenanceSaving] = useState(false);
+  const [isDocumentSaving, setIsDocumentSaving] = useState(false);
+  const [isIncidentSaving, setIsIncidentSaving] = useState(false);
+
+  const { addNotification } = useNotifications();
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  // Fetch vehicles from API
+  const fetchVehicles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('/vehicles');
+      if (response.data.success) {
+        // Ensure numeric values are properly parsed
+        const vehiclesData = response.data.data.map((vehicle) => ({
+          ...vehicle,
+          id: Number(vehicle.id),
+          year: Number(vehicle.year),
+          mileage: Number(vehicle.mileage) || 0,
+          sessions_count: Number(vehicle.sessions_count) || 0,
+          purchase_price: Number(vehicle.purchase_price) || 0,
+          current_value: Number(vehicle.current_value) || 0,
+          fuel_efficiency: Number(vehicle.fuel_efficiency) || 0,
+        }));
+        setVehicles(vehiclesData);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vehicles:', error);
+      showToast('Failed to load vehicles', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchVehicles();
+  }, [fetchVehicles]);
+
   /* ── KPIs ── */
   const kpis = useMemo(() => {
     const active = vehicles.filter((v) => v.status === 'Active').length;
     const maintenance = vehicles.filter((v) => v.status === 'Maintenance').length;
-    const inactive = vehicles.filter((v) => v.status === 'Inactive').length;
-    const totalMileage = vehicles.reduce((s, v) => s + v.mileage, 0);
-    const totalValue = vehicles.reduce((s, v) => s + (v.current_value || 0), 0);
+    const inactive = vehicles.filter(
+      (v) => v.status === 'Inactive' || v.status === 'Out of Service',
+    ).length;
+    const totalMileage = vehicles.reduce((s, v) => s + (Number(v.mileage) || 0), 0);
+    const totalValue = vehicles.reduce((s, v) => s + (Number(v.current_value) || 0), 0);
     return { total: vehicles.length, active, maintenance, inactive, totalMileage, totalValue };
   }, [vehicles]);
 
   /* ── Filter + Sort ── */
   const filtered = useMemo(() => {
     let list = [...vehicles];
-    if (search)
+    if (search) {
       list = list.filter(
         (v) =>
           `${v.brand} ${v.model}`.toLowerCase().includes(search.toLowerCase()) ||
-          v.plate.toLowerCase().includes(search.toLowerCase()) ||
-          v.assigned_instructor.toLowerCase().includes(search.toLowerCase()),
+          v.plate?.toLowerCase().includes(search.toLowerCase()) ||
+          v.assigned_instructor?.toLowerCase().includes(search.toLowerCase()),
       );
+    }
     if (filterCategory !== 'All') list = list.filter((v) => v.category === filterCategory);
     if (filterStatus !== 'All') list = list.filter((v) => v.status === filterStatus);
     list.sort((a, b) => {
-      const va = a[sortField] ?? '';
-      const vb = b[sortField] ?? '';
+      let va = a[sortField] ?? '';
+      let vb = b[sortField] ?? '';
+      if (sortField === 'mileage') {
+        va = Number(va) || 0;
+        vb = Number(vb) || 0;
+      }
       return sortDir === 'asc' ? (va < vb ? -1 : 1) : va > vb ? -1 : 1;
     });
     return list;
@@ -1598,78 +1442,198 @@ const Vehicles = () => {
     }
   };
 
-  /* ── CRUD ── */
-  const handleSave = (form) => {
-    if (modal === 'add') {
-      const newV = {
-        ...form,
-        id: Date.now(),
-        sessions_count: 0,
-        maintenance_history: [],
-        documents: [],
-        incidents: [],
-      };
-      setVehicles((v) => [newV, ...v]);
-      showToast('Vehicle added successfully');
-    } else {
-      setVehicles((v) => v.map((x) => (x.id === form.id ? { ...x, ...form } : x)));
-      showToast('Vehicle updated successfully');
+  // Export handlers
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterCategory !== 'All') params.append('category', filterCategory);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/vehicles/export/excel?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vehicles_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export Excel file', 'error');
+    } finally {
+      setIsExporting(false);
     }
-    setModal(null);
-    setEditVehicle(null);
   };
 
-  const handleDelete = (id) => {
-    setVehicles((v) => v.filter((x) => x.id !== id));
-    setDeleteTarget(null);
-    setDetailVehicle(null);
-    showToast('Vehicle removed from fleet');
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams();
+      if (filterCategory !== 'All') params.append('category', filterCategory);
+      if (filterStatus !== 'All') params.append('status', filterStatus);
+      if (search) params.append('search', search);
+
+      const response = await axios.get(`/vehicles/export/pdf?${params.toString()}`, {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `vehicles_${new Date().toISOString().split('T')[0]}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF export completed successfully');
+    } catch (error) {
+      console.error('Export failed:', error);
+      showToast('Failed to export PDF file', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleAddMaintenance = (vehicle, record) => {
-    setVehicles((v) =>
-      v.map((x) => {
-        if (x.id === vehicle.id) {
-          const history = [...(x.maintenance_history || []), record];
-          return {
-            ...x,
-            maintenance_history: history,
-            last_maintenance: record.date,
-            next_maintenance: '',
-          };
+  /* ── CRUD ── */
+  const handleSave = async (form) => {
+    setIsSaving(true);
+    const isNew = !form.id;
+
+    try {
+      let response;
+      if (isNew) {
+        response = await axios.post('/vehicles', form);
+      } else {
+        response = await axios.put(`/vehicles/${form.id}`, form);
+      }
+
+      if (response.data.success) {
+        await fetchVehicles();
+
+        if (isNew) {
+          addNotification(
+            'New Vehicle Added',
+            `${form.brand} ${form.model} (${form.plate}) has been added to the fleet`,
+            'system',
+          );
+          showToast('Vehicle added successfully');
+        } else {
+          showToast('Vehicle updated successfully');
         }
-        return x;
-      }),
-    );
-    setMaintenanceTarget(null);
-    showToast('Maintenance record added');
+      }
+    } catch (error) {
+      console.error('Failed to save vehicle:', error);
+      showToast(error.response?.data?.message || 'Failed to save vehicle', 'error');
+    } finally {
+      setIsSaving(false);
+      setModal(null);
+      setEditVehicle(null);
+    }
   };
 
-  const handleAddDocument = (vehicle, doc) => {
-    setVehicles((v) =>
-      v.map((x) => {
-        if (x.id === vehicle.id) {
-          return { ...x, documents: [...(x.documents || []), doc] };
+  const handleDelete = async (id) => {
+    setIsDeleting(true);
+
+    try {
+      const response = await axios.delete(`/vehicles/${id}`);
+
+      if (response.data.success) {
+        const deletedVehicle = vehicles.find((v) => v.id === id);
+        await fetchVehicles();
+
+        if (deletedVehicle) {
+          addNotification(
+            'Vehicle Removed',
+            `${deletedVehicle.brand} ${deletedVehicle.model} (${deletedVehicle.plate}) has been removed from the fleet`,
+            'system',
+          );
         }
-        return x;
-      }),
-    );
-    setDocumentTarget(null);
-    showToast('Document uploaded');
+
+        showToast('Vehicle removed from fleet', 'error');
+      }
+    } catch (error) {
+      console.error('Failed to delete vehicle:', error);
+      showToast(error.response?.data?.message || 'Failed to delete vehicle', 'error');
+    } finally {
+      setIsDeleting(false);
+      setDeleteTarget(null);
+      setDetailVehicle(null);
+    }
   };
 
-  const handleAddIncident = (vehicle, incident) => {
-    setVehicles((v) =>
-      v.map((x) => {
-        if (x.id === vehicle.id) {
-          return { ...x, incidents: [...(x.incidents || []), incident] };
-        }
-        return x;
-      }),
-    );
-    setIncidentTarget(null);
-    showToast('Incident reported');
+  const handleAddMaintenance = async (vehicle, record) => {
+    setIsMaintenanceSaving(true);
+    try {
+      const response = await axios.post(`/vehicles/${vehicle.id}/maintenance`, record);
+      if (response.data.success) {
+        await fetchVehicles();
+        showToast('Maintenance record added');
+      }
+    } catch (error) {
+      console.error('Failed to add maintenance:', error);
+      showToast('Failed to add maintenance record', 'error');
+    } finally {
+      setIsMaintenanceSaving(false);
+      setMaintenanceTarget(null);
+    }
   };
+
+  const handleAddDocument = async (vehicle, doc) => {
+    setIsDocumentSaving(true);
+    try {
+      const response = await axios.post(`/vehicles/${vehicle.id}/documents`, doc);
+      if (response.data.success) {
+        await fetchVehicles();
+        showToast('Document uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      showToast('Failed to upload document', 'error');
+    } finally {
+      setIsDocumentSaving(false);
+      setDocumentTarget(null);
+    }
+  };
+
+  const handleAddIncident = async (vehicle, incident) => {
+    setIsIncidentSaving(true);
+    try {
+      const response = await axios.post(`/vehicles/${vehicle.id}/incidents`, incident);
+      if (response.data.success) {
+        await fetchVehicles();
+        showToast('Incident reported successfully');
+      }
+    } catch (error) {
+      console.error('Failed to report incident:', error);
+      showToast('Failed to report incident', 'error');
+    } finally {
+      setIsIncidentSaving(false);
+      setIncidentTarget(null);
+    }
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="vehicles-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading vehicles...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="vehicles-page">
@@ -1795,11 +1759,13 @@ const Vehicles = () => {
             </option>
           ))}
         </select>
-        <button className="btn-export" onClick={() => showToast('Excel export coming soon')}>
-          <Download size={15} /> Excel
+        <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
+          Excel
         </button>
-        <button className="btn-export" onClick={() => showToast('PDF export coming soon')}>
-          <FileText size={15} /> PDF
+        <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />}
+          PDF
         </button>
         <button
           className="btn-add"
@@ -1896,7 +1862,7 @@ const Vehicles = () => {
                       <td>
                         <span className="category-badge">{v.category}</span>
                       </td>
-                      <td>{v.mileage.toLocaleString()} km</td>
+                      <td>{(Number(v.mileage) || 0).toLocaleString()} km</td>
                       <td>
                         <StatusBadge status={v.status} />
                       </td>
@@ -1937,6 +1903,7 @@ const Vehicles = () => {
         </div>
       )}
 
+      {/* Modals */}
       {(modal === 'add' || modal === 'edit') && (
         <VehicleModal
           vehicle={modal === 'edit' ? editVehicle : null}
@@ -1945,6 +1912,7 @@ const Vehicles = () => {
             setEditVehicle(null);
           }}
           onSave={handleSave}
+          isSaving={isSaving}
         />
       )}
       {detailVehicle && (
@@ -1970,6 +1938,7 @@ const Vehicles = () => {
           vehicle={deleteTarget}
           onConfirm={() => handleDelete(deleteTarget.id)}
           onCancel={() => setDeleteTarget(null)}
+          isDeleting={isDeleting}
         />
       )}
       {maintenanceTarget && (
@@ -1977,6 +1946,7 @@ const Vehicles = () => {
           vehicle={maintenanceTarget}
           onClose={() => setMaintenanceTarget(null)}
           onSave={(record) => handleAddMaintenance(maintenanceTarget, record)}
+          isSaving={isMaintenanceSaving}
         />
       )}
       {documentTarget && (
@@ -1984,6 +1954,7 @@ const Vehicles = () => {
           vehicle={documentTarget}
           onClose={() => setDocumentTarget(null)}
           onSave={(doc) => handleAddDocument(documentTarget, doc)}
+          isSaving={isDocumentSaving}
         />
       )}
       {incidentTarget && (
@@ -1991,6 +1962,7 @@ const Vehicles = () => {
           vehicle={incidentTarget}
           onClose={() => setIncidentTarget(null)}
           onSave={(incident) => handleAddIncident(incidentTarget, incident)}
+          isSaving={isIncidentSaving}
         />
       )}
     </div>

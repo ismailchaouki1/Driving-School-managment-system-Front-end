@@ -1906,3 +1906,43 @@
     }
   }
 }
+// Payments Loading state
+.payments-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+
+  .loading-spinner {
+    text-align: center;
+
+    .spinner {
+      animation: spin 1s linear infinite;
+      color: #8cff2e;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 0.9rem;
+    }
+  }
+}
+
+// Spinner animation
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Action button spinner for Payments
+.btn-save .spinner,
+.btn-delete .spinner,
+.btn-export .spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 8px;
+}
