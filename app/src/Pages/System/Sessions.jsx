@@ -26,6 +26,8 @@ import {
   UserCheck,
   CreditCard,
   Loader,
+  Play,
+  CheckCircle as ConfirmIcon,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -127,12 +129,45 @@ const StudentTypeBadge = ({ type }) => {
   );
 };
 
-// Card Component
-const SessionCard = ({ session, onEdit, onDelete, onView, onPrint }) => {
+// Card Component - Updated with status control buttons
+const SessionCard = ({
+  session,
+  onEdit,
+  onDelete,
+  onView,
+  onPrint,
+  onStartSession,
+  onCompleteSession,
+}) => {
   const [expanded, setExpanded] = useState(false);
 
+  // Get time-based status for visual indication
+  const getTimeStatus = () => {
+    const now = new Date();
+    const sessionDate = new Date(session.date);
+    const [startHour, startMinute] = session.start_time.split(':');
+    const [endHour, endMinute] = session.end_time.split(':');
+
+    const sessionStart = new Date(sessionDate);
+    sessionStart.setHours(parseInt(startHour), parseInt(startMinute), 0);
+
+    const sessionEnd = new Date(sessionDate);
+    sessionEnd.setHours(parseInt(endHour), parseInt(endMinute), 0);
+
+    if (now > sessionEnd) return 'past';
+    if (now >= sessionStart && now <= sessionEnd) return 'current';
+    return 'upcoming';
+  };
+
+  const timeStatus = getTimeStatus();
+  const canStart = session.status === 'Scheduled';
+  const canComplete = session.status === 'Scheduled' || session.status === 'In Progress';
+  const isCompleted = session.status === 'Completed';
+
   return (
-    <div className={`session-card ${expanded ? 'expanded' : ''}`}>
+    <div
+      className={`session-card ${expanded ? 'expanded' : ''} ${timeStatus === 'current' ? 'current-session' : ''} ${timeStatus === 'past' ? 'past-session' : ''}`}
+    >
       <div className="card-header-gradient" style={{ background: getRandomGradient(session.id) }}>
         <div className="session-time-large">
           <Clock size={20} />
@@ -141,6 +176,9 @@ const SessionCard = ({ session, onEdit, onDelete, onView, onPrint }) => {
         <div className="session-status-badge-top">
           <StatusBadge status={session.status} />
         </div>
+        {timeStatus === 'current' && session.status === 'Scheduled' && (
+          <div className="live-badge">LIVE</div>
+        )}
         <button className="card-menu-btn" onClick={() => setExpanded(!expanded)}>
           <ChevronDown size={16} />
         </button>
@@ -216,6 +254,36 @@ const SessionCard = ({ session, onEdit, onDelete, onView, onPrint }) => {
         </button>
       </div>
 
+      {/* Status Control Buttons */}
+      {(canStart || canComplete) && !isCompleted && (
+        <div className="status-controls">
+          {canStart && (
+            <button
+              className="status-btn start-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartSession(session);
+              }}
+            >
+              <Play size={14} />
+              Start Session
+            </button>
+          )}
+          {canComplete && (
+            <button
+              className="status-btn complete-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCompleteSession(session);
+              }}
+            >
+              <ConfirmIcon size={14} />
+              Mark as Completed
+            </button>
+          )}
+        </div>
+      )}
+
       {expanded && (
         <div className="expanded-details">
           <div className="details-grid">
@@ -285,7 +353,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
       set('student_category', 'B');
       set('student_phone', '');
       set('student_email', '');
-      // Auto-set payment_status to 'Paid' for walk-in students
       set('payment_status', 'Paid');
     } else {
       set('student_id', '');
@@ -389,7 +456,7 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
       end_time: form.end_time,
       duration: form.duration,
       price: form.type === 'Driving' ? 200 : 150,
-      payment_status: form.payment_status, // This will be 'Paid' for walk-in students
+      payment_status: form.payment_status,
       vehicle_id: form.type === 'Driving' ? form.vehicle_id || null : null,
       vehicle_plate: form.type === 'Driving' ? form.vehicle_plate || null : null,
       location: form.location || null,
@@ -422,7 +489,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
         </div>
 
         <div className="modal-body">
-          {/* Student Type Selection */}
           {!isEdit && (
             <div className="form-section">
               <div className="section-header">
@@ -450,7 +516,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           )}
 
-          {/* Student Information */}
           <div className="form-section">
             <div className="section-header">
               <User size={14} />
@@ -531,7 +596,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             )}
           </div>
 
-          {/* Instructor & Session */}
           <div className="form-section">
             <div className="section-header">
               <User size={14} />
@@ -570,7 +634,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Schedule */}
           <div className="form-section">
             <div className="section-header">
               <Calendar size={14} />
@@ -616,7 +679,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Vehicle & Location */}
           <div className="form-section">
             <div className="section-header">
               <Car size={14} />
@@ -654,7 +716,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Payment */}
           <div className="form-section">
             <div className="section-header">
               <CreditCard size={14} />
@@ -678,7 +739,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Notes */}
           <div className="form-section">
             <div className="section-header">
               <FileText size={14} />
@@ -924,6 +984,8 @@ const Sessions = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -968,9 +1030,80 @@ const Sessions = () => {
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData();
+      setLastUpdated(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    setLastUpdated(new Date());
+    showToast('Sessions refreshed successfully');
+  };
+
+  // Start session handler
+  const handleStartSession = async (session) => {
+    if (
+      !window.confirm(`Are you sure you want to start the session for ${session.student_name}?`)
+    ) {
+      return;
+    }
+
+    try {
+      const response = await axios.post(`/sessions/${session.id}/start`);
+      if (response.data.success) {
+        await fetchData();
+        addNotification(
+          'Session Started',
+          `${session.student_name}'s ${session.type} session has started`,
+          'session',
+        );
+        showToast('Session started successfully');
+      }
+    } catch (error) {
+      console.error('Failed to start session:', error);
+      showToast(error.response?.data?.message || 'Failed to start session', 'error');
+    }
+  };
+
+  // Complete session handler with confirmation
+  const handleCompleteSession = async (session) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to mark this session as COMPLETED for ${session.student_name}?`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await axios.post(`/sessions/${session.id}/complete`);
+      if (response.data.success) {
+        await fetchData();
+        addNotification(
+          'Session Completed',
+          `${session.student_name}'s ${session.type} session has been completed`,
+          'session',
+        );
+        showToast('Session marked as completed');
+      }
+    } catch (error) {
+      console.error('Failed to complete session:', error);
+      showToast(error.response?.data?.message || 'Failed to complete session', 'error');
+    }
+  };
 
   // Filter and sort sessions
   const filtered = useMemo(() => {
@@ -1335,6 +1468,11 @@ const Sessions = () => {
           placeholder="End Date"
         />
 
+        <button className="refresh-btn" onClick={handleRefresh} disabled={isRefreshing}>
+          <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
+          Refresh
+        </button>
+
         <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
           {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
           Excel
@@ -1355,6 +1493,14 @@ const Sessions = () => {
           <Plus size={16} /> Schedule Session
         </button>
       </div>
+
+      {/* Last updated indicator */}
+      {lastUpdated && (
+        <div className="last-updated">
+          <Clock size={12} />
+          <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
+        </div>
+      )}
 
       {/* Content - Cards or Table */}
       {viewMode === 'cards' ? (
@@ -1380,6 +1526,8 @@ const Sessions = () => {
                 onDelete={(s) => setDeleteTarget(s)}
                 onPrint={handlePrintReceipt}
                 onView={(s) => setDetailSession(s)}
+                onStartSession={handleStartSession}
+                onCompleteSession={handleCompleteSession}
               />
             ))
           )}
@@ -1421,79 +1569,117 @@ const Sessions = () => {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="empty-state">
+                    <td colSpan="8" className="empty-state">
                       <Calendar size={32} />
                       <div>No sessions found</div>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((session) => (
-                    <tr key={session.id} onClick={() => setDetailSession(session)}>
-                      <td className="datetime-cell">
-                        <div className="date-info">{session.date}</div>
-                        <div className="time-info">
-                          {session.start_time} - {session.end_time}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="student-info">
-                          <div className="student-avatar-mini">
-                            {getInitials(session.student_name)}
+                  filtered.map((session) => {
+                    const canStart = session.status === 'Scheduled';
+                    const canComplete =
+                      session.status === 'Scheduled' || session.status === 'In Progress';
+                    const isCompleted = session.status === 'Completed';
+
+                    return (
+                      <tr key={session.id} onClick={() => setDetailSession(session)}>
+                        <td className="datetime-cell">
+                          <div className="date-info">{session.date}</div>
+                          <div className="time-info">
+                            {session.start_time} - {session.end_time}
                           </div>
-                          <div className="student-details">
-                            <div className="student-name">
-                              {session.student_name}
-                              <StudentTypeBadge type={session.student_type} />
+                        </td>
+                        <td>
+                          <div className="student-info">
+                            <div className="student-avatar-mini">
+                              {getInitials(session.student_name)}
                             </div>
-                            <div className="student-category">Cat. {session.student_category}</div>
+                            <div className="student-details">
+                              <div className="student-name">
+                                {session.student_name}
+                                <StudentTypeBadge type={session.student_type} />
+                              </div>
+                              <div className="student-category">
+                                Cat. {session.student_category}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <TypeBadge type={session.type} />
-                      </td>
-                      <td>{session.instructor_name}</td>
-                      <td>
-                        <StatusBadge status={session.status} />
-                      </td>
-                      <td className="vehicle-cell">{session.vehicle_plate || '-'}</td>
-                      <td>
-                        <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="action-btn"
-                            onClick={() => setDetailSession(session)}
-                            title="View Details"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => {
-                              setEditSession(session);
-                              setModal('edit');
-                            }}
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => handlePrintReceipt(session)}
-                            title="Print Receipt"
-                          >
-                            <Printer size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => setDeleteTarget(session)}
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td>
+                          <TypeBadge type={session.type} />
+                        </td>
+                        <td>{session.instructor_name}</td>
+                        <td>
+                          <StatusBadge status={session.status} />
+                        </td>
+                        <td className="vehicle-cell">{session.vehicle_plate || '-'}</td>
+                        <td>
+                          <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="action-btn"
+                              onClick={() => setDetailSession(session)}
+                              title="View Details"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => {
+                                setEditSession(session);
+                                setModal('edit');
+                              }}
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => handlePrintReceipt(session)}
+                              title="Print Receipt"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => setDeleteTarget(session)}
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {/* Status Control Buttons for Table View */}
+                          {(canStart || canComplete) && !isCompleted && (
+                            <div
+                              className="table-status-buttons"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {canStart && (
+                                <button
+                                  className="table-status-btn start-btn"
+                                  onClick={() => handleStartSession(session)}
+                                  title="Start Session"
+                                >
+                                  <Play size={12} />
+                                  Start
+                                </button>
+                              )}
+                              {canComplete && (
+                                <button
+                                  className="table-status-btn complete-btn"
+                                  onClick={() => handleCompleteSession(session)}
+                                  title="Complete Session"
+                                >
+                                  <ConfirmIcon size={12} />
+                                  Complete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

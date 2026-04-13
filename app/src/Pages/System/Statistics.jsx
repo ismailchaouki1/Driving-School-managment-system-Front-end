@@ -1,5 +1,5 @@
 // Pages/System/Statistics.jsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -26,294 +26,191 @@ import {
   Minus,
   Loader,
   Filter,
+  BarChart3,
+  LineChart,
+  PieChart,
+  AreaChart,
+  X,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Statistics.scss';
 import { Link } from 'react-router-dom';
 
-/* ─────────────── Mock Data ─────────────── */
+/* ─────────────── Constants ─────────────── */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// Revenue data by month
-const REVENUE_DATA = {
-  labels: MONTHS,
-  datasets: [
-    {
-      name: 'Registration Fees',
-      data: [45000, 52000, 48000, 61000, 58000, 72000, 85000, 78000, 69000, 74000, 82000, 91000],
-      color: '#8cff2e',
-    },
-    {
-      name: 'Session Payments',
-      data: [28000, 31000, 35000, 42000, 45000, 53000, 62000, 58000, 49000, 54000, 61000, 68000],
-      color: '#3b82f6',
-    },
-    {
-      name: 'Exam Fees',
-      data: [8000, 7500, 8200, 7800, 8500, 9200, 9800, 8900, 7600, 8100, 8700, 9400],
-      color: '#f59e0b',
-    },
-  ],
-};
-
-// Student registrations by month
-const STUDENT_REGISTRATIONS = {
-  labels: MONTHS,
-  data: [12, 15, 14, 18, 20, 25, 30, 28, 22, 24, 27, 32],
-};
-
-// Session completion rate by month
-const SESSION_COMPLETION = {
-  labels: MONTHS,
-  scheduled: [45, 52, 48, 58, 62, 75, 88, 82, 68, 72, 78, 85],
-  completed: [38, 44, 41, 50, 54, 66, 78, 72, 60, 64, 69, 76],
-  cancelled: [5, 6, 5, 6, 6, 7, 8, 8, 6, 6, 7, 7],
-  noShow: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
-};
-
-// Payment method distribution
-const PAYMENT_METHODS_DISTRIBUTION = [
-  { name: 'Cash', value: 45, color: '#8cff2e' },
-  { name: 'Bank Transfer', value: 25, color: '#3b82f6' },
-  { name: 'Card', value: 18, color: '#10b981' },
-  { name: 'Cheque', value: 7, color: '#f59e0b' },
-  { name: 'Online', value: 5, color: '#8b5cf6' },
+const DATE_RANGES = [
+  { value: 'week', label: 'This Week' },
+  { value: 'month', label: 'This Month' },
+  { value: 'quarter', label: 'This Quarter' },
+  { value: 'year', label: 'This Year' },
 ];
 
-// Category distribution
-const CATEGORY_DISTRIBUTION = [
-  { name: 'Category B', value: 68, color: '#8cff2e' },
-  { name: 'Category A', value: 12, color: '#3b82f6' },
-  { name: 'Category C', value: 8, color: '#f59e0b' },
-  { name: 'Category D', value: 5, color: '#ef4444' },
-  { name: 'Category BE', value: 4, color: '#8b5cf6' },
-  { name: 'Category A1', value: 3, color: '#06b6d4' },
-];
+const SESSION_TYPES = ['Driving', 'Code', 'Both'];
+const PAYMENT_CATEGORIES = ['Registration', 'Session', 'Exam'];
 
-// Top performing instructors
-const TOP_INSTRUCTORS = [
-  {
-    id: 1,
-    name: 'Mohammed Benali',
-    sessions: 156,
-    completion_rate: 94,
-    revenue: 31200,
-    rating: 4.8,
-  },
-  { id: 2, name: 'Fatima Zahra', sessions: 142, completion_rate: 92, revenue: 28400, rating: 4.7 },
-  { id: 3, name: 'Karim Tazi', sessions: 128, completion_rate: 89, revenue: 25600, rating: 4.6 },
-  {
-    id: 4,
-    name: 'Nadia Ouazzani',
-    sessions: 118,
-    completion_rate: 91,
-    revenue: 23600,
-    rating: 4.8,
-  },
-  {
-    id: 5,
-    name: 'Hassan El Fassi',
-    sessions: 98,
-    completion_rate: 87,
-    revenue: 19600,
-    rating: 4.5,
-  },
-];
-
-// Recent transactions
-const RECENT_TRANSACTIONS = [
-  {
-    id: 1,
-    date: '2025-04-07',
-    student: 'Youssef Alami',
-    amount: 3000,
-    type: 'Registration',
-    status: 'Paid',
-  },
-  {
-    id: 2,
-    date: '2025-04-07',
-    student: 'Fatima Benali',
-    amount: 450,
-    type: 'Exam',
-    status: 'Paid',
-  },
-  {
-    id: 3,
-    date: '2025-04-06',
-    student: 'Karim Cherkaoui',
-    amount: 200,
-    type: 'Session',
-    status: 'Pending',
-  },
-  {
-    id: 4,
-    date: '2025-04-06',
-    student: 'Nadia Tazi',
-    amount: 6000,
-    type: 'Registration',
-    status: 'Paid',
-  },
-  {
-    id: 5,
-    date: '2025-04-05',
-    student: 'Hassan Ouazzani',
-    amount: 200,
-    type: 'Session',
-    status: 'Paid',
-  },
-];
-
-// Vehicle utilization
-const VEHICLE_UTILIZATION = [
-  { id: 1, name: 'Dacia Sandero', plate: '12345-A-1', utilization: 78, sessions: 142 },
-  { id: 2, name: 'Renault Clio', plate: '67890-B-2', utilization: 85, sessions: 218 },
-  { id: 3, name: 'Honda CB500', plate: '11223-C-3', utilization: 62, sessions: 67 },
-  { id: 4, name: 'Mercedes Actros', plate: '44556-D-4', utilization: 45, sessions: 89 },
-  { id: 5, name: 'Peugeot 208', plate: '99887-E-5', utilization: 58, sessions: 44 },
-];
-
-/* ─────────────── Helper Functions for Filtering ─────────────── */
-
-// Filter data by date range - FIXED
-const filterDataByDateRange = (data, dateRange, labels) => {
-  // Return all data for year view or invalid dateRange
-  if (dateRange === 'year' || !dateRange || dateRange === 'custom') {
-    return { filteredData: data, filteredLabels: labels };
-  }
-
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth(); // 0-11
-  let startIndex = 0;
-  let endIndex = labels.length;
-
-  switch (dateRange) {
-    case 'month':
-      startIndex = currentMonth;
-      endIndex = currentMonth + 1;
-      break;
-    case 'quarter': {
-      const quarterStart = Math.floor(currentMonth / 3) * 3;
-      startIndex = quarterStart;
-      endIndex = Math.min(quarterStart + 3, labels.length);
-      break;
-    }
-    case 'week':
-      // Show last 2 months for week view
-      startIndex = Math.max(0, currentMonth - 1);
-      endIndex = Math.min(currentMonth + 1, labels.length);
-      break;
-    default:
-      return { filteredData: data, filteredLabels: labels };
-  }
-
-  // Ensure indices are within valid range
-  startIndex = Math.max(0, Math.min(startIndex, labels.length - 1));
-  endIndex = Math.max(startIndex + 1, Math.min(endIndex, labels.length));
-
-  const filteredLabels = labels.slice(startIndex, endIndex);
-
-  // Handle different data formats
-  let filteredData;
-  if (Array.isArray(data)) {
-    // Simple array data
-    filteredData = data.slice(startIndex, endIndex);
-  } else if (data && Array.isArray(data.data)) {
-    // Dataset format (like REVENUE_DATA.datasets)
-    filteredData = data.map((dataset) => ({
-      ...dataset,
-      data: dataset.data.slice(startIndex, endIndex),
-    }));
-  } else if (data && typeof data === 'object' && !Array.isArray(data)) {
-    // Object with multiple arrays (like SESSION_COMPLETION)
-    filteredData = {};
-    for (const key in data) {
-      if (Array.isArray(data[key])) {
-        filteredData[key] = data[key].slice(startIndex, endIndex);
-      } else {
-        filteredData[key] = data[key];
-      }
-    }
-  } else {
-    filteredData = data;
-  }
-
-  return { filteredData, filteredLabels };
+/* ─────────────── Helper Functions ─────────────── */
+const formatCurrency = (value) => {
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  return value.toString();
 };
 
-/* ─────────────── Sub-components ─────────────── */
+/* ─────────────── Chart Components ─────────────── */
 
-// Simple Bar Chart Component
-const BarChart = ({ data, labels, title, color = '#8cff2e', height = 300 }) => {
-  const maxValue = Math.max(...data, 1);
-
-  return (
-    <div className="chart-container">
-      <h4>{title}</h4>
-      <div className="bar-chart" style={{ height: `${height}px` }}>
-        {data.map((value, index) => (
-          <div key={index} className="bar-wrapper">
-            <div
-              className="bar"
-              style={{
-                height: `${(value / maxValue) * 100}%`,
-                backgroundColor: color,
-              }}
-            >
-              <span className="bar-value">{value.toLocaleString()}</span>
-            </div>
-            <span className="bar-label">{labels[index]}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// Line Chart Component
-const LineChartComponent = ({ datasets, labels, title, height = 300 }) => {
+// Revenue Trends Chart
+const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
   const maxValue = Math.max(...datasets.flatMap((d) => d.data), 1);
-  const chartWidth = Math.max(labels.length * 60, 300);
+  const chartWidth = Math.max(labels.length * 80, 500);
+  const padding = { top: 30, right: 30, bottom: 30, left: 50 };
+  const chartHeight = height - padding.top - padding.bottom;
+  const stepX =
+    chartHeight > 0 ? (chartWidth - padding.left - padding.right) / (labels.length - 1) : 0;
+
+  const getX = (index) => padding.left + index * stepX;
+  const getY = (value) => padding.top + chartHeight - (value / maxValue) * chartHeight;
+
+  if (!datasets.length || !labels.length) {
+    return (
+      <div className="chart-card revenue-chart">
+        <div className="chart-header">
+          <h3>
+            <AreaChart size={18} /> Revenue Trends
+          </h3>
+        </div>
+        <div className="empty-state">No revenue data available for selected filters</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="chart-container">
-      <h4>{title}</h4>
-      <div className="line-chart" style={{ height: `${height}px` }}>
-        <svg className="line-chart-svg" viewBox={`0 0 ${chartWidth} ${height}`}>
-          {datasets.map((dataset, datasetIndex) => {
-            const points = dataset.data
-              .map((value, index) => {
-                const x = index * 60 + 30;
-                const y = height - (value / maxValue) * (height - 40);
-                return `${x},${y}`;
-              })
-              .join(' ');
-
-            return (
-              <polyline
-                key={datasetIndex}
-                points={points}
-                fill="none"
-                stroke={dataset.color}
-                strokeWidth="2"
-                className="chart-line"
-              />
-            );
-          })}
-        </svg>
-        <div className="line-labels">
-          {labels.map((label, index) => (
-            <span key={index} className="line-label">
-              {label}
+    <div className="chart-card revenue-chart">
+      <div className="chart-header">
+        <h3>
+          <AreaChart size={18} /> Revenue Trends
+        </h3>
+        <div className="chart-stats">
+          <div className="stat-badge">
+            <TrendingUp size={14} />
+            <span>
+              Total:{' '}
+              {formatCurrency(
+                datasets.reduce((sum, d) => sum + d.data.reduce((a, b) => a + b, 0), 0),
+              )}{' '}
+              MAD
             </span>
-          ))}
+          </div>
         </div>
       </div>
+      <div className="revenue-chart-container" style={{ height: `${height}px` }}>
+        <svg
+          className="revenue-chart-svg"
+          viewBox={`0 0 ${chartWidth} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            {datasets.map((dataset, idx) => (
+              <linearGradient key={idx} id={`gradient-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={dataset.color} stopOpacity="0.4" />
+                <stop offset="100%" stopColor={dataset.color} stopOpacity="0.02" />
+              </linearGradient>
+            ))}
+          </defs>
+
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+            const y = padding.top + chartHeight * (1 - ratio);
+            const value = maxValue * ratio;
+            return (
+              <g key={i}>
+                <line
+                  x1={padding.left}
+                  y1={y}
+                  x2={chartWidth - padding.right}
+                  y2={y}
+                  stroke="#e9edf2"
+                  strokeWidth="1"
+                  strokeDasharray="4"
+                />
+                <text x={padding.left - 8} y={y + 4} fill="#94a3b8" fontSize="10" textAnchor="end">
+                  {formatCurrency(Math.round(value))}
+                </text>
+              </g>
+            );
+          })}
+
+          {datasets.map((dataset, idx) => {
+            const points = dataset.data.map((value, i) => `${getX(i)},${getY(value)}`).join(' ');
+            const areaPoints = `${points} ${getX(labels.length - 1)},${padding.top + chartHeight} ${getX(0)},${padding.top + chartHeight}`;
+
+            return (
+              <g key={idx}>
+                <polygon
+                  points={areaPoints}
+                  fill={`url(#gradient-${idx})`}
+                  className="chart-area"
+                />
+                <polyline
+                  points={points}
+                  fill="none"
+                  stroke={dataset.color}
+                  strokeWidth="2.5"
+                  className="chart-line"
+                />
+                {dataset.data.map((value, i) => (
+                  <g
+                    key={i}
+                    className="chart-dot"
+                    transform={`translate(${getX(i)}, ${getY(value)})`}
+                  >
+                    <circle r="4" fill={dataset.color} stroke="#fff" strokeWidth="2" />
+                    <rect
+                      x="-24"
+                      y="-32"
+                      width="48"
+                      height="22"
+                      rx="6"
+                      fill="#1a1a2e"
+                      className="dot-tooltip"
+                    />
+                    <text
+                      x="0"
+                      y="-18"
+                      textAnchor="middle"
+                      fill="#fff"
+                      fontSize="10"
+                      className="dot-tooltip"
+                    >
+                      {formatCurrency(value)} MAD
+                    </text>
+                  </g>
+                ))}
+              </g>
+            );
+          })}
+
+          {labels.map((label, i) => (
+            <text
+              key={i}
+              x={getX(i)}
+              y={padding.top + chartHeight + 20}
+              fill="#94a3b8"
+              fontSize="11"
+              textAnchor="middle"
+              fontWeight="500"
+            >
+              {label}
+            </text>
+          ))}
+        </svg>
+      </div>
       <div className="chart-legend">
-        {datasets.map((dataset, index) => (
-          <div key={index} className="legend-item">
+        {datasets.map((dataset, idx) => (
+          <div key={idx} className="legend-item">
             <span className="legend-color" style={{ backgroundColor: dataset.color }}></span>
             <span>{dataset.name}</span>
+            <span className="legend-value">
+              {formatCurrency(dataset.data.reduce((a, b) => a + b, 0))} MAD
+            </span>
           </div>
         ))}
       </div>
@@ -321,45 +218,388 @@ const LineChartComponent = ({ datasets, labels, title, height = 300 }) => {
   );
 };
 
-// Pie Chart Component
-const PieChartComponent = ({ data, title, size = 200 }) => {
-  let cumulativeAngle = 0;
+// Student Registrations Chart
+const StudentRegistrationsChart = ({ data, labels, height = 300 }) => {
+  const maxValue = Math.max(...data, 1);
+  const chartWidth = Math.max(labels.length * 70, 400);
+  const barWidth = Math.min(50, ((chartWidth - 80) / labels.length) * 0.6);
+
+  const getX = (index) =>
+    40 +
+    (index * (chartWidth - 80)) / labels.length +
+    ((chartWidth - 80) / labels.length - barWidth) / 2;
+  const getY = (value) => 30 + 250 - (value / maxValue) * 250;
+
+  if (!data.length || data.every((v) => v === 0)) {
+    return (
+      <div className="chart-card registrations-chart">
+        <div className="chart-header">
+          <h3>
+            <BarChart3 size={18} /> Student Registrations
+          </h3>
+        </div>
+        <div className="empty-state">No registration data available for selected filters</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="chart-container pie-chart-container">
-      <h4>{title}</h4>
-      <div className="pie-chart-wrapper">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-          {data.map((item, index) => {
-            const angle = (item.value / 100) * 360;
-            const startAngle = cumulativeAngle;
-            const endAngle = cumulativeAngle + angle;
-            cumulativeAngle += angle;
+    <div className="chart-card registrations-chart">
+      <div className="chart-header">
+        <h3>
+          <BarChart3 size={18} /> Student Registrations
+        </h3>
+        <div className="chart-stats">
+          <div className="stat-badge total">
+            <Users size={14} />
+            <span>Total: {data.reduce((a, b) => a + b, 0)} students</span>
+          </div>
+        </div>
+      </div>
+      <div className="registrations-chart-container" style={{ height: `${height}px` }}>
+        <svg
+          className="registrations-chart-svg"
+          viewBox={`0 0 ${chartWidth} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8cff2e" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#6ecc24" stopOpacity="0.7" />
+            </linearGradient>
+            <filter id="barShadow">
+              <feDropShadow
+                dx="0"
+                dy="2"
+                stdDeviation="3"
+                floodColor="#8cff2e"
+                floodOpacity="0.3"
+              />
+            </filter>
+          </defs>
 
-            const startRad = ((startAngle - 90) * Math.PI) / 180;
-            const endRad = ((endAngle - 90) * Math.PI) / 180;
-
-            const x1 = size / 2 + (size / 2 - 10) * Math.cos(startRad);
-            const y1 = size / 2 + (size / 2 - 10) * Math.sin(startRad);
-            const x2 = size / 2 + (size / 2 - 10) * Math.cos(endRad);
-            const y2 = size / 2 + (size / 2 - 10) * Math.sin(endRad);
-
-            const largeArc = angle > 180 ? 1 : 0;
-
-            const pathData = `M ${size / 2} ${size / 2} L ${x1} ${y1} A ${size / 2 - 10} ${size / 2 - 10} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+            const y = 30 + 250 * (1 - ratio);
+            const value = maxValue * ratio;
             return (
-              <path key={index} d={pathData} fill={item.color} stroke="white" strokeWidth="2" />
+              <g key={i}>
+                <line
+                  x1="30"
+                  y1={y}
+                  x2={chartWidth - 30}
+                  y2={y}
+                  stroke="#e9edf2"
+                  strokeWidth="1"
+                  strokeDasharray="4"
+                />
+                <text x="25" y={y + 4} fill="#94a3b8" fontSize="10" textAnchor="end">
+                  {Math.round(value)}
+                </text>
+              </g>
             );
           })}
-          <circle cx={size / 2} cy={size / 2} r={size / 4} fill="white" />
+
+          {data.map((value, i) => (
+            <g key={i}>
+              <rect
+                x={getX(i)}
+                y={getY(value)}
+                width={barWidth}
+                height={280 - getY(value) + 30}
+                rx="8"
+                fill="url(#barGradient)"
+                filter="url(#barShadow)"
+                className="chart-bar"
+              />
+              <text
+                x={getX(i) + barWidth / 2}
+                y={getY(value) - 8}
+                fill="#1a1a2e"
+                fontSize="11"
+                fontWeight="700"
+                textAnchor="middle"
+              >
+                {value}
+              </text>
+            </g>
+          ))}
+
+          {labels.map((label, i) => (
+            <text
+              key={i}
+              x={getX(i) + barWidth / 2}
+              y={315}
+              fill="#94a3b8"
+              fontSize="11"
+              textAnchor="middle"
+              fontWeight="500"
+            >
+              {label}
+            </text>
+          ))}
         </svg>
-        <div className="pie-legend">
-          {data.map((item, index) => (
-            <div key={index} className="pie-legend-item">
-              <span className="legend-dot" style={{ backgroundColor: item.color }}></span>
-              <span>{item.name}</span>
-              <span className="legend-value">{item.value}%</span>
+      </div>
+    </div>
+  );
+};
+
+// Session Analytics Chart
+const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
+  const maxValue = Math.max(...datasets.flatMap((d) => d.data), 1);
+  const chartWidth = Math.max(labels.length * 80, 500);
+  const padding = { top: 30, right: 30, bottom: 30, left: 50 };
+  const chartHeight = height - padding.top - padding.bottom;
+  const stepX =
+    chartHeight > 0 ? (chartWidth - padding.left - padding.right) / (labels.length - 1) : 0;
+
+  const getX = (index) => padding.left + index * stepX;
+  const getY = (value) => padding.top + chartHeight - (value / maxValue) * chartHeight;
+
+  const getSmoothPath = (points) => {
+    if (points.length < 2) return '';
+    let path = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const cp1x = p0.x + (p1.x - p0.x) * 0.5;
+      const cp1y = p0.y;
+      const cp2x = p1.x - (p1.x - p0.x) * 0.5;
+      const cp2y = p1.y;
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p1.x} ${p1.y}`;
+    }
+    return path;
+  };
+
+  if (!datasets.length || !labels.length || datasets.every((d) => d.data.every((v) => v === 0))) {
+    return (
+      <div className="chart-card session-chart">
+        <div className="chart-header">
+          <h3>
+            <LineChart size={18} /> Session Analytics
+          </h3>
+        </div>
+        <div className="empty-state">No session data available for selected filters</div>
+      </div>
+    );
+  }
+
+  const totalScheduled =
+    datasets.find((d) => d.name === 'Scheduled')?.data.reduce((a, b) => a + b, 0) || 0;
+  const totalCompleted =
+    datasets.find((d) => d.name === 'Completed')?.data.reduce((a, b) => a + b, 0) || 0;
+  const completionRate =
+    totalScheduled > 0 ? Math.round((totalCompleted / totalScheduled) * 100) : 0;
+
+  return (
+    <div className="chart-card session-chart">
+      <div className="chart-header">
+        <h3>
+          <LineChart size={18} /> Session Analytics
+        </h3>
+        <div className="chart-stats">
+          <div className="stat-badge completion">
+            <CheckCircle size={14} />
+            <span>Completion Rate: {completionRate}%</span>
+          </div>
+        </div>
+      </div>
+      <div className="session-chart-container" style={{ height: `${height}px` }}>
+        <svg
+          className="session-chart-svg"
+          viewBox={`0 0 ${chartWidth} ${height}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <defs>
+            {datasets.map((dataset, idx) => (
+              <linearGradient key={idx} id={`session-grad-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={dataset.color} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={dataset.color} stopOpacity="0.02" />
+              </linearGradient>
+            ))}
+          </defs>
+
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
+            const y = padding.top + chartHeight * (1 - ratio);
+            const value = maxValue * ratio;
+            return (
+              <g key={i}>
+                <line
+                  x1={padding.left}
+                  y1={y}
+                  x2={chartWidth - padding.right}
+                  y2={y}
+                  stroke="#e9edf2"
+                  strokeWidth="1"
+                  strokeDasharray="4"
+                />
+                <text x={padding.left - 8} y={y + 4} fill="#94a3b8" fontSize="10" textAnchor="end">
+                  {Math.round(value)}
+                </text>
+              </g>
+            );
+          })}
+
+          {datasets.map((dataset, idx) => {
+            const points = dataset.data.map((value, i) => ({ x: getX(i), y: getY(value) }));
+            const smoothPath = getSmoothPath(points);
+
+            return (
+              <g key={idx}>
+                <path
+                  d={smoothPath}
+                  fill="none"
+                  stroke={dataset.color}
+                  strokeWidth="2.5"
+                  className="chart-line"
+                />
+                {dataset.data.map((value, i) => (
+                  <g
+                    key={i}
+                    className="chart-dot"
+                    transform={`translate(${getX(i)}, ${getY(value)})`}
+                  >
+                    <circle r="3.5" fill={dataset.color} stroke="#fff" strokeWidth="2" />
+                    <rect
+                      x="-24"
+                      y="-32"
+                      width="48"
+                      height="22"
+                      rx="6"
+                      fill="#1a1a2e"
+                      className="dot-tooltip"
+                    />
+                    <text
+                      x="0"
+                      y="-18"
+                      textAnchor="middle"
+                      fill="#fff"
+                      fontSize="10"
+                      className="dot-tooltip"
+                    >
+                      {value} sessions
+                    </text>
+                  </g>
+                ))}
+              </g>
+            );
+          })}
+
+          {labels.map((label, i) => (
+            <text
+              key={i}
+              x={getX(i)}
+              y={padding.top + chartHeight + 20}
+              fill="#94a3b8"
+              fontSize="11"
+              textAnchor="middle"
+              fontWeight="500"
+            >
+              {label}
+            </text>
+          ))}
+        </svg>
+      </div>
+      <div className="chart-legend">
+        {datasets.map((dataset, idx) => (
+          <div key={idx} className="legend-item">
+            <span className="legend-color" style={{ backgroundColor: dataset.color }}></span>
+            <span>{dataset.name}</span>
+            <span className="legend-value">{dataset.data.reduce((a, b) => a + b, 0)} total</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Donut Chart Component
+const DonutChartComponent = ({ data, title, size = 200 }) => {
+  let cumulativeAngle = 0;
+
+  const filteredData = data.filter((item) => item.value > 0);
+
+  if (!filteredData || filteredData.length === 0) {
+    return (
+      <div className="chart-card">
+        <div className="chart-header">
+          <h3>
+            <PieChart size={18} /> {title}
+          </h3>
+        </div>
+        <div className="empty-state">
+          <CreditCard size={32} />
+          <p>No data available for selected filters</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chart-card donut-chart-card">
+      <div className="chart-header">
+        <h3>
+          <PieChart size={18} /> {title}
+        </h3>
+      </div>
+      <div className="donut-chart-wrapper">
+        <div className="donut-chart-container">
+          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+            {filteredData.map((item, idx) => {
+              const angle = (item.value / 100) * 360;
+              const startAngle = cumulativeAngle;
+              const endAngle = cumulativeAngle + angle;
+              cumulativeAngle += angle;
+
+              const startRad = ((startAngle - 90) * Math.PI) / 180;
+              const endRad = ((endAngle - 90) * Math.PI) / 180;
+              const x1 = size / 2 + (size / 2 - 25) * Math.cos(startRad);
+              const y1 = size / 2 + (size / 2 - 25) * Math.sin(startRad);
+              const x2 = size / 2 + (size / 2 - 25) * Math.cos(endRad);
+              const y2 = size / 2 + (size / 2 - 25) * Math.sin(endRad);
+              const largeArc = angle > 180 ? 1 : 0;
+              const pathData = `M ${size / 2} ${size / 2} L ${x1} ${y1} A ${size / 2 - 25} ${size / 2 - 25} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+              return (
+                <g key={idx} className="donut-segment">
+                  <path d={pathData} fill={item.color} stroke="white" strokeWidth="3" />
+                </g>
+              );
+            })}
+            <circle cx={size / 2} cy={size / 2} r={size / 2 - 35} fill="white" />
+            <text
+              x={size / 2}
+              y={size / 2 - 5}
+              textAnchor="middle"
+              fill="#1a1a2e"
+              fontSize="14"
+              fontWeight="800"
+              fontFamily="Manrope-Bold"
+            >
+              {filteredData.length}
+            </text>
+            <text
+              x={size / 2}
+              y={size / 2 + 10}
+              textAnchor="middle"
+              fill="#94a3b8"
+              fontSize="10"
+              fontWeight="500"
+            >
+              Categories
+            </text>
+          </svg>
+        </div>
+        <div className="donut-legend">
+          {filteredData.map((item, idx) => (
+            <div key={idx} className="donut-legend-item">
+              <div className="legend-color-wrapper">
+                <span className="legend-dot" style={{ backgroundColor: item.color }}></span>
+              </div>
+              <div className="legend-info">
+                <span className="legend-name">{item.name}</span>
+                <span className="legend-percentage">{item.value}%</span>
+              </div>
+              {item.count !== undefined && <span className="legend-count">{item.count} items</span>}
             </div>
           ))}
         </div>
@@ -389,12 +629,10 @@ const KpiCard = ({
           {suffix}
         </div>
         <div className="kpi-label">{label}</div>
-        {change !== undefined && (
-          <div
-            className={`kpi-change ${changeType === 'up' ? 'positive' : changeType === 'down' ? 'negative' : 'neutral'}`}
-          >
-            {changeType === 'up' && <TrendingUp size={12} />}
-            {changeType === 'down' && <TrendingDown size={12} />}
+        {change !== undefined && change !== null && (
+          <div className={`kpi-change ${changeType}`}>
+            {changeType === 'positive' && <TrendingUp size={12} />}
+            {changeType === 'negative' && <TrendingDown size={12} />}
             {changeType === 'neutral' && <Minus size={12} />}
             <span>{Math.abs(change)}% vs last month</span>
           </div>
@@ -421,8 +659,9 @@ const StatCard = ({ icon: IconComponent, label, value, color }) => {
 };
 
 // Toast Component
-const Toast = ({ toast }) => {
+const Toast = ({ toast, onClose }) => {
   if (!toast) return null;
+  setTimeout(() => onClose(), 3000);
   return (
     <div className={`toast-notification toast-${toast.type}`}>
       {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
@@ -438,138 +677,162 @@ const Statistics = () => {
   const [filterCategory, setFilterCategory] = useState('All');
   const [toast, setToast] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [stats, setStats] = useState({
+    kpis: {
+      total_revenue: 0,
+      total_students: 0,
+      total_sessions: 0,
+      completion_rate: 0,
+      avg_revenue_per_student: 0,
+      revenue_change: 0,
+      current_month_revenue: 0,
+    },
+    quick_stats: {
+      active_students: 0,
+      inactive_students: 0,
+      passing_rate: 0,
+      avg_rating: 0,
+      avg_session_duration: 0,
+      top_category: 'B',
+    },
+    revenue_data: { labels: MONTHS, datasets: [] },
+    registrations_data: { labels: MONTHS, data: [] },
+    session_data: { labels: MONTHS, scheduled: [], completed: [], cancelled: [], no_show: [] },
+    payment_methods: [],
+    category_distribution: [],
+    top_instructors: [],
+    recent_transactions: [],
+    vehicle_utilization: [],
+    applied_filters: {},
+  });
 
   const { addNotification } = useNotifications();
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = (msg, type = 'success') => setToast({ msg, type });
+  const hideToast = () => setToast(null);
 
-  // Filter and sort data based on selected filters
-  const filteredInstructors = useMemo(() => {
-    let filtered = [...TOP_INSTRUCTORS];
+  // Fetch statistics data with filters
+  const fetchStatistics = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get('/statistics/dashboard', {
+        params: {
+          date_range: dateRange,
+          filter_type: filterType,
+          filter_category: filterCategory,
+        },
+      });
 
-    if (filterType !== 'All') {
-      filtered = filtered.filter(
-        (instructor) => instructor.sessions > (filterType === 'Driving' ? 120 : 100),
-      );
+      if (response.data.success) {
+        setStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch statistics:', error);
+      showToast('Failed to load statistics data', 'error');
+    } finally {
+      setIsLoading(false);
     }
+  }, [dateRange, filterType, filterCategory]);
 
-    return filtered;
-  }, [filterType]);
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
 
-  const filteredTransactions = useMemo(() => {
-    let filtered = [...RECENT_TRANSACTIONS];
+  // Prepare filtered data for charts
+  const revenueData = useMemo(() => stats.revenue_data, [stats.revenue_data]);
+  const registrationsData = useMemo(() => stats.registrations_data, [stats.registrations_data]);
 
-    if (filterCategory !== 'All') {
-      filtered = filtered.filter((t) => t.type === filterCategory);
-    }
+  const sessionData = useMemo(
+    () => ({
+      labels: stats.session_data.labels,
+      scheduled: stats.session_data.scheduled,
+      completed: stats.session_data.completed,
+      cancelled: stats.session_data.cancelled,
+      no_show: stats.session_data.no_show,
+    }),
+    [stats.session_data],
+  );
 
-    return filtered;
-  }, [filterCategory]);
-
-  // Filter revenue data by date range
-  const filteredRevenueData = useMemo(() => {
-    const { filteredData, filteredLabels } = filterDataByDateRange(
-      REVENUE_DATA.datasets,
-      dateRange,
-      REVENUE_DATA.labels,
-    );
-    return { datasets: filteredData, labels: filteredLabels };
-  }, [dateRange]);
-
-  // Filter student registrations by date range
-  const filteredStudentData = useMemo(() => {
-    const { filteredData, filteredLabels } = filterDataByDateRange(
-      STUDENT_REGISTRATIONS.data,
-      dateRange,
-      STUDENT_REGISTRATIONS.labels,
-    );
-    return { data: filteredData, labels: filteredLabels };
-  }, [dateRange]);
-
-  // Filter session data by date range
-  const filteredSessionData = useMemo(() => {
-    const { filteredLabels } = filterDataByDateRange(
-      SESSION_COMPLETION.scheduled,
-      dateRange,
-      SESSION_COMPLETION.labels,
-    );
-
-    const filterArrayData = (dataArray) => {
-      const { filteredData } = filterDataByDateRange(
-        dataArray,
-        dateRange,
-        SESSION_COMPLETION.labels,
-      );
-      return filteredData;
-    };
-
-    return {
-      labels: filteredLabels,
-      scheduled: filterArrayData(SESSION_COMPLETION.scheduled),
-      completed: filterArrayData(SESSION_COMPLETION.completed),
-      cancelled: filterArrayData(SESSION_COMPLETION.cancelled),
-      noShow: filterArrayData(SESSION_COMPLETION.noShow),
-    };
-  }, [dateRange]);
-
-  // Calculate KPIs based on filtered data
-  const kpis = useMemo(() => {
-    const totalRevenue = filteredRevenueData.datasets.reduce(
-      (sum, ds) => sum + ds.data.reduce((s, v) => s + v, 0),
-      0,
-    );
-    const totalStudents = filteredStudentData.data.reduce((a, b) => a + b, 0);
-    const totalSessions = filteredSessionData.scheduled.reduce((a, b) => a + b, 0);
-    const completedSessions = filteredSessionData.completed.reduce((a, b) => a + b, 0);
-    const completionRate = totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0;
-    const avgRevenuePerStudent = totalStudents > 0 ? totalRevenue / totalStudents : 0;
-    const currentMonthRevenue = filteredRevenueData.datasets.reduce(
-      (sum, ds) => sum + (ds.data[ds.data.length - 1] || 0),
-      0,
-    );
-    const previousMonthRevenue = filteredRevenueData.datasets.reduce(
-      (sum, ds) => sum + (ds.data[ds.data.length - 2] || 0),
-      0,
-    );
-    const revenueChange =
-      previousMonthRevenue > 0
-        ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100
-        : 0;
-
-    return {
-      totalRevenue,
-      totalStudents,
-      totalSessions,
-      completionRate,
-      avgRevenuePerStudent,
-      revenueChange,
-      currentMonthRevenue,
-    };
-  }, [filteredRevenueData, filteredStudentData, filteredSessionData]);
-
-  // Get current month data
-  const currentMonth = MONTHS[new Date().getMonth()];
-
-  const handleExport = (format) => {
-    setIsExporting(true);
-    setTimeout(() => {
-      setIsExporting(false);
-      showToast(`Report exported as ${format.toUpperCase()}`);
-      addNotification(
-        'Report Exported',
-        `Statistics report has been exported as ${format.toUpperCase()}`,
-        'system',
-      );
-    }, 1500);
-  };
-
-  const handleRefresh = () => {
-    showToast('Data refreshed successfully');
+  const handleRefresh = async () => {
+    await fetchStatistics();
+    showToast('Statistics refreshed successfully');
     addNotification('Data Refreshed', 'Statistics data has been updated', 'system');
+  };
+
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    try {
+      const response = await axios.get('/statistics/export-pdf', {
+        params: {
+          date_range: dateRange,
+          filter_type: filterType,
+          filter_category: filterCategory,
+        },
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], { type: 'application/pdf' }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `statistics_report_${new Date().toISOString().split('T')[0]}.pdf`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('PDF report exported successfully');
+      addNotification('Report Exported', 'Statistics PDF report has been downloaded', 'system');
+    } catch (error) {
+      console.error('PDF Export failed:', error);
+      showToast('Failed to export PDF report', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const response = await axios.get('/statistics/export-excel', {
+        params: {
+          date_range: dateRange,
+          filter_type: filterType,
+          filter_category: filterCategory,
+        },
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(
+        new Blob([response.data], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute(
+        'download',
+        `statistics_report_${new Date().toISOString().split('T')[0]}.xlsx`,
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast('Excel report exported successfully');
+      addNotification('Report Exported', 'Statistics Excel report has been downloaded', 'system');
+    } catch (error) {
+      console.error('Excel Export failed:', error);
+      showToast('Failed to export Excel report', 'error');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const resetFilters = () => {
@@ -579,9 +842,35 @@ const Statistics = () => {
     showToast('Filters reset successfully');
   };
 
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (dateRange !== 'year') count++;
+    if (filterType !== 'All') count++;
+    if (filterCategory !== 'All') count++;
+    return count;
+  };
+
+  const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
+
+  if (isLoading) {
+    return (
+      <div className="statistics-loading">
+        <div className="loading-spinner">
+          <Loader size={48} className="spinner" />
+          <p>Loading statistics...</p>
+          <div className="loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="statistics-page">
-      <Toast toast={toast} />
+      <Toast toast={toast} onClose={hideToast} />
 
       {/* Header */}
       <div className="dashboard-header">
@@ -591,277 +880,315 @@ const Statistics = () => {
             <p>Comprehensive insights into your driving school performance</p>
           </div>
           <div className="header-actions">
-            <button className="action-btn refresh" onClick={handleRefresh}>
-              <RefreshCw size={16} />
-              Refresh
+            <button className="action-btn refresh" onClick={handleRefresh} disabled={isLoading}>
+              <RefreshCw size={16} className={isLoading ? 'spinning' : ''} /> Refresh
             </button>
-            <button className="action-btn export" onClick={() => handleExport('pdf')}>
-              <FileText size={16} />
-              Export PDF
+            <button className="action-btn export" onClick={handleExportPDF}>
+              <FileText size={16} /> Export PDF
             </button>
-            <button className="action-btn export" onClick={() => handleExport('excel')}>
-              <Download size={16} />
-              Export Excel
+            <button className="action-btn export" onClick={handleExportExcel}>
+              <Download size={16} /> Export Excel
             </button>
           </div>
         </div>
       </div>
 
-      {/* Date Range Selector */}
-      <div className="date-range-selector">
-        <button
-          className={dateRange === 'week' ? 'active' : ''}
-          onClick={() => setDateRange('week')}
-        >
-          This Week
-        </button>
-        <button
-          className={dateRange === 'month' ? 'active' : ''}
-          onClick={() => setDateRange('month')}
-        >
-          This Month
-        </button>
-        <button
-          className={dateRange === 'quarter' ? 'active' : ''}
-          onClick={() => setDateRange('quarter')}
-        >
-          This Quarter
-        </button>
-        <button
-          className={dateRange === 'year' ? 'active' : ''}
-          onClick={() => setDateRange('year')}
-        >
-          This Year
-        </button>
-        <button
-          className={dateRange === 'custom' ? 'active' : ''}
-          onClick={() => setDateRange('custom')}
-        >
-          Custom Range
-        </button>
-        <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
-          <Filter size={16} />
-          Filters
-          {(filterType !== 'All' || filterCategory !== 'All') && <span className="filter-badge" />}
-        </button>
-        {(filterType !== 'All' || filterCategory !== 'All') && (
-          <button className="reset-filters" onClick={resetFilters}>
-            Reset
+      {/* Active Filters Bar */}
+      {getActiveFiltersCount() > 0 && (
+        <div className="active-filters-bar">
+          <span className="active-filters-label">Active Filters:</span>
+          {dateRange !== 'year' && (
+            <span className="filter-tag">
+              Period: {DATE_RANGES.find((r) => r.value === dateRange)?.label}
+              <button onClick={() => setDateRange('year')}>
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {filterType !== 'All' && (
+            <span className="filter-tag">
+              Session: {filterType}
+              <button onClick={() => setFilterType('All')}>
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          {filterCategory !== 'All' && (
+            <span className="filter-tag">
+              Payment: {filterCategory}
+              <button onClick={() => setFilterCategory('All')}>
+                <X size={12} />
+              </button>
+            </span>
+          )}
+          <button className="clear-all-filters" onClick={resetFilters}>
+            Clear All
           </button>
-        )}
-      </div>
-
-      {/* Additional Filters */}
-      {showFilters && (
-        <div className="additional-filters">
-          <div className="filter-group">
-            <label>Session Type</label>
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-              <option value="All">All Types</option>
-              <option value="Driving">Driving</option>
-              <option value="Code">Code</option>
-              <option value="Exam">Exam</option>
-            </select>
-          </div>
-          <div className="filter-group">
-            <label>Payment Category</label>
-            <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
-              <option value="All">All Categories</option>
-              <option value="Registration">Registration</option>
-              <option value="Session">Session</option>
-              <option value="Exam">Exam</option>
-            </select>
-          </div>
         </div>
       )}
+
+      {/* Filters */}
+      <div className="filters-bar">
+        <div className="date-range-selector">
+          {DATE_RANGES.map((range) => (
+            <button
+              key={range.value}
+              className={dateRange === range.value ? 'active' : ''}
+              onClick={() => setDateRange(range.value)}
+            >
+              {range.label}
+            </button>
+          ))}
+          <button className="filter-toggle" onClick={() => setShowFilters(!showFilters)}>
+            <Filter size={16} /> Filters
+            {getActiveFiltersCount() > 0 && (
+              <span className="filter-badge">{getActiveFiltersCount()}</span>
+            )}
+          </button>
+          {getActiveFiltersCount() > 0 && (
+            <button className="reset-filters" onClick={resetFilters}>
+              Reset All
+            </button>
+          )}
+        </div>
+
+        {showFilters && (
+          <div className="additional-filters">
+            <div className="filter-group">
+              <label>Session Type</label>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+                <option value="All">All Types</option>
+                <option value="Driving">Driving</option>
+                <option value="Code">Code</option>
+              </select>
+            </div>
+            <div className="filter-group">
+              <label>Payment Category</label>
+              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                <option value="All">All Categories</option>
+                <option value="Registration">Registration</option>
+                <option value="Session">Session</option>
+                <option value="Exam">Exam</option>
+              </select>
+            </div>
+            <div className="filter-actions">
+              <button className="apply-filters" onClick={() => setShowFilters(false)}>
+                Apply Filters
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* KPI Grid */}
       <div className="kpi-grid">
         <KpiCard
           icon={DollarSign}
           label="Total Revenue"
-          value={kpis.totalRevenue}
+          value={stats.kpis.total_revenue}
           prefix="MAD "
-          change={kpis.revenueChange}
-          changeType={kpis.revenueChange >= 0 ? 'up' : 'down'}
+          change={stats.kpis.revenue_change}
+          changeType={stats.kpis.revenue_change >= 0 ? 'positive' : 'negative'}
         />
         <KpiCard
           icon={Users}
           label="Total Students"
-          value={kpis.totalStudents}
+          value={stats.kpis.total_students}
           change={8.5}
-          changeType="up"
+          changeType="positive"
         />
         <KpiCard
           icon={Car}
           label="Total Sessions"
-          value={kpis.totalSessions}
+          value={stats.kpis.total_sessions}
           change={12.3}
-          changeType="up"
+          changeType="positive"
         />
         <KpiCard
           icon={Target}
           label="Completion Rate"
-          value={`${Math.round(kpis.completionRate)}`}
+          value={Math.round(stats.kpis.completion_rate)}
           suffix="%"
           change={3.2}
-          changeType="up"
+          changeType="positive"
         />
         <KpiCard
           icon={Wallet}
           label="Avg Revenue/Student"
-          value={Math.round(kpis.avgRevenuePerStudent)}
+          value={Math.round(stats.kpis.avg_revenue_per_student)}
           prefix="MAD "
           change={-2.1}
-          changeType="down"
+          changeType="negative"
         />
         <KpiCard
           icon={CalendarIcon}
-          label={`Revenue (${currentMonth})`}
-          value={kpis.currentMonthRevenue}
+          label={`Revenue (${currentMonthName})`}
+          value={stats.kpis.current_month_revenue}
           prefix="MAD "
           change={5.4}
-          changeType="up"
+          changeType="positive"
         />
       </div>
 
-      {/* Quick Stats Row */}
+      {/* Quick Stats */}
       <div className="quick-stats">
-        <StatCard icon={UserCheck} label="Active Students" value="156" color="#8cff2e" />
-        <StatCard icon={UserX} label="Inactive Students" value="23" color="#ef4444" />
-        <StatCard icon={Percent} label="Passing Rate" value="87%" color="#10b981" />
-        <StatCard icon={Star} label="Avg Rating" value="4.8/5" color="#f59e0b" />
-        <StatCard icon={Clock} label="Avg Session Duration" value="92 min" color="#3b82f6" />
-        <StatCard icon={Award} label="Top Category" value="Category B" color="#8cff2e" />
+        <StatCard
+          icon={UserCheck}
+          label="Active Students"
+          value={stats.quick_stats.active_students}
+          color="#8cff2e"
+        />
+        <StatCard
+          icon={UserX}
+          label="Inactive Students"
+          value={stats.quick_stats.inactive_students}
+          color="#ef4444"
+        />
+        <StatCard
+          icon={Percent}
+          label="Passing Rate"
+          value={`${stats.quick_stats.passing_rate}%`}
+          color="#10b981"
+        />
+        <StatCard
+          icon={Star}
+          label="Avg Rating"
+          value={`${stats.quick_stats.avg_rating}/5`}
+          color="#f59e0b"
+        />
+        <StatCard
+          icon={Clock}
+          label="Avg Session Duration"
+          value={`${stats.quick_stats.avg_session_duration} min`}
+          color="#3b82f6"
+        />
+        <StatCard
+          icon={Award}
+          label="Top Category"
+          value={stats.quick_stats.top_category}
+          color="#8cff2e"
+        />
       </div>
 
       {/* Main Charts Row */}
       <div className="charts-row">
-        <div className="chart-card large">
-          <LineChartComponent
-            datasets={filteredRevenueData.datasets}
-            labels={filteredRevenueData.labels}
-            title="Revenue Trends"
-            height={350}
-          />
-        </div>
-        <div className="chart-card">
-          <BarChart
-            data={filteredStudentData.data}
-            labels={filteredStudentData.labels}
-            title="Student Registrations"
-            color="#8cff2e"
-            height={300}
-          />
-        </div>
+        <RevenueTrendsChart
+          datasets={revenueData.datasets}
+          labels={revenueData.labels}
+          height={350}
+        />
+        <StudentRegistrationsChart
+          data={registrationsData.data}
+          labels={registrationsData.labels}
+          height={300}
+        />
       </div>
 
-      {/* Second Charts Row */}
+      {/* Secondary Charts Row */}
       <div className="charts-row">
-        <div className="chart-card">
-          <LineChartComponent
-            datasets={[
-              { name: 'Scheduled', data: filteredSessionData.scheduled, color: '#3b82f6' },
-              { name: 'Completed', data: filteredSessionData.completed, color: '#10b981' },
-              { name: 'Cancelled', data: filteredSessionData.cancelled, color: '#ef4444' },
-              { name: 'No Show', data: filteredSessionData.noShow, color: '#f59e0b' },
-            ]}
-            labels={filteredSessionData.labels}
-            title="Session Analytics"
-            height={300}
-          />
-        </div>
-        <div className="chart-card">
-          <PieChartComponent
-            data={PAYMENT_METHODS_DISTRIBUTION}
-            title="Payment Methods Distribution"
-            size={200}
-          />
-        </div>
-        <div className="chart-card">
-          <PieChartComponent
-            data={CATEGORY_DISTRIBUTION}
-            title="Category Distribution"
-            size={200}
-          />
-        </div>
+        <SessionAnalyticsChart
+          datasets={[
+            { name: 'Scheduled', data: sessionData.scheduled, color: '#3b82f6' },
+            { name: 'Completed', data: sessionData.completed, color: '#10b981' },
+            { name: 'Cancelled', data: sessionData.cancelled, color: '#ef4444' },
+            { name: 'No Show', data: sessionData.no_show, color: '#f59e0b' },
+          ]}
+          labels={sessionData.labels}
+          height={300}
+        />
+        <DonutChartComponent
+          data={stats.payment_methods}
+          title="Payment Methods Distribution"
+          size={200}
+        />
+        <DonutChartComponent
+          data={stats.category_distribution}
+          title="Category Distribution"
+          size={200}
+        />
       </div>
 
-      {/* Third Row - Tables */}
+      {/* Top Instructors & Recent Transactions */}
       <div className="tables-row">
-        {/* Top Instructors */}
         <div className="table-card">
           <div className="table-header">
             <h3>
               <Award size={18} /> Top Performing Instructors
             </h3>
-            <Link to={'/system/instructors'} className="view-all">
+            <Link to="/system/instructors" className="view-all">
               View All →
             </Link>
           </div>
-          <div className="instructors-table-wrapper">
-            <table className="instructors-table">
+          <div className="table-wrapper">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>Instructor</th>
                   <th>Sessions</th>
-                  <th>Completion Rate</th>
+                  <th>Completion</th>
                   <th>Revenue</th>
                   <th>Rating</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredInstructors.map((instructor) => (
-                  <tr key={instructor.id}>
-                    <td>
-                      <div className="instructor-cell">
-                        <div className="instructor-avatar">
-                          {instructor.name
-                            .split(' ')
-                            .map((n) => n[0])
-                            .join('')}
-                        </div>
-                        <span>{instructor.name}</span>
-                      </div>
-                    </td>
-                    <td>{instructor.sessions}</td>
-                    <td>
-                      <div className="completion-cell">
-                        <div className="completion-bar">
-                          <div
-                            className="completion-fill"
-                            style={{ width: `${instructor.completion_rate}%` }}
-                          />
-                        </div>
-                        <span>{instructor.completion_rate}%</span>
-                      </div>
-                    </td>
-                    <td>{instructor.revenue.toLocaleString()} MAD</td>
-                    <td>
-                      <div className="rating">
-                        <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                        <span>{instructor.rating}</span>
-                      </div>
+                {stats.top_instructors.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="empty-state">
+                      No instructor data available for selected filters
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  stats.top_instructors.map((instructor) => (
+                    <tr key={instructor.id}>
+                      <td>
+                        <div className="instructor-cell">
+                          <div className="instructor-avatar">
+                            {instructor.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')}
+                          </div>
+                          <span>{instructor.name}</span>
+                        </div>
+                      </td>
+                      <td>{instructor.sessions}</td>
+                      <td>
+                        <div className="completion-cell">
+                          <div className="completion-bar">
+                            <div
+                              className="completion-fill"
+                              style={{ width: `${instructor.completion_rate}%` }}
+                            />
+                          </div>
+                          <span>{instructor.completion_rate}%</span>
+                        </div>
+                      </td>
+                      <td>{(instructor.revenue || 0).toLocaleString()} MAD</td>
+                      <td>
+                        <div className="rating">
+                          <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                          <span>{instructor.rating}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Recent Transactions */}
         <div className="table-card">
           <div className="table-header">
             <h3>
               <Receipt size={18} /> Recent Transactions
             </h3>
-            <Link to={'/system/payments'} className="view-all">
+            <Link to="/system/payments" className="view-all">
               View All →
             </Link>
           </div>
-          <div className="transactions-table-wrapper">
-            <table className="transactions-table">
+          <div className="table-wrapper">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -872,23 +1199,31 @@ const Statistics = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.map((transaction) => (
-                  <tr key={transaction.id}>
-                    <td>{transaction.date}</td>
-                    <td>{transaction.student}</td>
-                    <td className="amount">{transaction.amount.toLocaleString()} MAD</td>
-                    <td>
-                      <span className={`type-badge ${transaction.type.toLowerCase()}`}>
-                        {transaction.type}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${transaction.status.toLowerCase()}`}>
-                        {transaction.status}
-                      </span>
+                {stats.recent_transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" className="empty-state">
+                      No transactions available for selected filters
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  stats.recent_transactions.map((transaction) => (
+                    <tr key={transaction.id}>
+                      <td>{transaction.date}</td>
+                      <td>{transaction.student}</td>
+                      <td className="amount">{(transaction.amount || 0).toLocaleString()} MAD</td>
+                      <td>
+                        <span className={`type-badge ${transaction.type?.toLowerCase()}`}>
+                          {transaction.type}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`status-badge ${transaction.status?.toLowerCase()}`}>
+                          {transaction.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -901,12 +1236,12 @@ const Statistics = () => {
           <h3>
             <Car size={18} /> Vehicle Utilization
           </h3>
-          <Link to={'/system/vehicles'} className="view-all">
+          <Link to="/system/vehicles" className="view-all">
             View Details →
           </Link>
         </div>
-        <div className="vehicles-table-wrapper">
-          <table className="vehicles-utilization-table">
+        <div className="table-wrapper">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Vehicle</th>
@@ -917,40 +1252,48 @@ const Statistics = () => {
               </tr>
             </thead>
             <tbody>
-              {VEHICLE_UTILIZATION.map((vehicle) => (
-                <tr key={vehicle.id}>
-                  <td>
-                    <div className="vehicle-cell">
-                      <Car size={16} />
-                      <span>{vehicle.name}</span>
-                    </div>
-                  </td>
-                  <td className="plate">{vehicle.plate}</td>
-                  <td>{vehicle.sessions}</td>
-                  <td>
-                    <div className="utilization-cell">
-                      <div className="utilization-bar">
-                        <div
-                          className="utilization-fill"
-                          style={{ width: `${vehicle.utilization}%` }}
-                        />
-                      </div>
-                      <span>{vehicle.utilization}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      className={`status-badge ${vehicle.utilization > 70 ? 'active' : vehicle.utilization > 40 ? 'partial' : 'low'}`}
-                    >
-                      {vehicle.utilization > 70
-                        ? 'High Usage'
-                        : vehicle.utilization > 40
-                          ? 'Medium Usage'
-                          : 'Low Usage'}
-                    </span>
+              {stats.vehicle_utilization.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="empty-state">
+                    No vehicle data available
                   </td>
                 </tr>
-              ))}
+              ) : (
+                stats.vehicle_utilization.map((vehicle) => (
+                  <tr key={vehicle.id}>
+                    <td>
+                      <div className="vehicle-cell">
+                        <Car size={16} />
+                        <span>{vehicle.name}</span>
+                      </div>
+                    </td>
+                    <td className="plate">{vehicle.plate}</td>
+                    <td>{vehicle.sessions}</td>
+                    <td>
+                      <div className="utilization-cell">
+                        <div className="utilization-bar">
+                          <div
+                            className="utilization-fill"
+                            style={{ width: `${vehicle.utilization}%` }}
+                          />
+                        </div>
+                        <span>{vehicle.utilization}%</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        className={`status-badge ${vehicle.utilization > 70 ? 'active' : vehicle.utilization > 40 ? 'partial' : 'low'}`}
+                      >
+                        {vehicle.utilization > 70
+                          ? 'High Usage'
+                          : vehicle.utilization > 40
+                            ? 'Medium Usage'
+                            : 'Low Usage'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -125,9 +125,8 @@ const TypeBadge = ({ type }) => {
   return <span className={`type-badge ${typeClass}`}>{type}</span>;
 };
 
-// Rating Stars Component - FIXED
+// Rating Stars Component
 const RatingStars = ({ rating }) => {
-  // Convert rating to number and handle invalid values
   const numericRating = typeof rating === 'number' ? rating : parseFloat(rating) || 0;
   const fullStars = Math.floor(numericRating);
   const hasHalfStar = numericRating % 1 >= 0.5;
@@ -763,27 +762,6 @@ const InstructorDetail = ({ instructor, onClose, onEdit, onDelete, onSchedule })
               </div>
             </div>
 
-            {instructor.certifications?.length > 0 && (
-              <div className="detail-section">
-                <h4>
-                  <GraduationCap size={14} /> Certifications
-                </h4>
-                <div className="certifications-list">
-                  {instructor.certifications.map((cert) => (
-                    <div key={cert.id} className="cert-item">
-                      <div>
-                        <div className="cert-name">{cert.name}</div>
-                        <div className="cert-dates">
-                          Issued: {cert.issue_date} | Expires: {cert.expiry_date}
-                        </div>
-                      </div>
-                      <Shield size={16} />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {instructor.notes && (
               <div className="detail-section">
                 <h4>
@@ -838,7 +816,6 @@ const ScheduleModal = ({ instructor, onClose }) => {
         <div className="modal-body">
           <div className="schedule-grid">
             {DAYS_OF_WEEK.map((day) => {
-              const daySchedule = instructor.schedule?.find((s) => s.day === day);
               const isAvailable = instructor.available_days?.includes(day);
 
               return (
@@ -852,15 +829,16 @@ const ScheduleModal = ({ instructor, onClose }) => {
                     )}
                   </div>
                   <div className="day-sessions">
-                    {daySchedule?.sessions?.length > 0 ? (
-                      daySchedule.sessions.map((session, idx) => (
-                        <div key={idx} className="session-slot">
-                          <Clock size={10} />
-                          <span>{session}</span>
-                        </div>
-                      ))
+                    {isAvailable ? (
+                      <div className="session-slot">
+                        <Clock size={10} />
+                        <span>
+                          {instructor.available_hours?.start || '09:00'} -{' '}
+                          {instructor.available_hours?.end || '18:00'}
+                        </span>
+                      </div>
                     ) : (
-                      <span className="no-sessions">No sessions scheduled</span>
+                      <span className="no-sessions">Not available</span>
                     )}
                   </div>
                 </div>
@@ -916,7 +894,7 @@ const Toast = ({ toast }) =>
     </div>
   ) : null;
 
-// KPI Card Component - FIXED
+// KPI Card Component
 const KpiCard = ({
   icon: IconComponent,
   label,
@@ -927,7 +905,6 @@ const KpiCard = ({
   suffix = '',
 }) => {
   const Icon = IconComponent;
-  // Ensure value is a number
   const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
 
   return (
@@ -987,8 +964,9 @@ const Instructors = () => {
     try {
       setLoading(true);
       const response = await axios.get('/instructors');
+      console.log('Instructors response:', response.data);
+
       if (response.data.success) {
-        // Ensure numeric values are properly parsed
         const instructorsData = response.data.data.map((instructor) => ({
           ...instructor,
           id: Number(instructor.id),
@@ -1000,10 +978,13 @@ const Instructors = () => {
           years_experience: Number(instructor.years_experience) || 0,
         }));
         setInstructors(instructorsData);
+      } else {
+        setInstructors([]);
       }
     } catch (error) {
       console.error('Failed to fetch instructors:', error);
       showToast('Failed to load instructors', 'error');
+      setInstructors([]);
     } finally {
       setLoading(false);
     }
@@ -1013,7 +994,7 @@ const Instructors = () => {
     fetchInstructors();
   }, [fetchInstructors]);
 
-  // KPIs - FIXED with proper number conversion
+  // KPIs
   const kpis = useMemo(() => {
     const total = instructors.length;
     const active = instructors.filter((i) => i.status === 'Active').length;
@@ -1032,17 +1013,21 @@ const Instructors = () => {
   // Filter + Sort
   const filtered = useMemo(() => {
     let list = [...instructors];
+
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
         (i) =>
           `${i.first_name} ${i.last_name}`.toLowerCase().includes(q) ||
           i.email?.toLowerCase().includes(q) ||
-          i.phone?.includes(q),
+          i.phone?.includes(q) ||
+          i.cin?.toLowerCase().includes(q),
       );
     }
+
     if (filterType !== 'All') list = list.filter((i) => i.type === filterType);
     if (filterStatus !== 'All') list = list.filter((i) => i.status === filterStatus);
+
     list.sort((a, b) => {
       let va = a[sortField] ?? '';
       let vb = b[sortField] ?? '';
@@ -1051,13 +1036,18 @@ const Instructors = () => {
         sortField === 'sessions_count' ||
         sortField === 'completion_rate' ||
         sortField === 'rating' ||
-        sortField === 'revenue'
+        sortField === 'revenue' ||
+        sortField === 'years_experience'
       ) {
         va = Number(va) || 0;
         vb = Number(vb) || 0;
       }
+      if (typeof va === 'string') {
+        return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
       return sortDir === 'asc' ? (va < vb ? -1 : 1) : va > vb ? -1 : 1;
     });
+
     return list;
   }, [instructors, search, filterType, filterStatus, sortField, sortDir]);
 
@@ -1309,7 +1299,7 @@ const Instructors = () => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, email, phone..."
+            placeholder="Search by name, email, phone, CIN..."
           />
         </div>
         <select

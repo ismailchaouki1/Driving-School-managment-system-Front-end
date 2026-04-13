@@ -1376,29 +1376,144 @@
 }
 
 .refresh-btn {
-  position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  background: rgba(140, 255, 46, 0.1);
-  border: 1px solid rgba(140, 255, 46, 0.3);
-  border-radius: 8px;
-  color: #8cff2e;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(140, 255, 46, 0.2);
-    border-color: #8cff2e;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    background: $second_color;
+    border-color: $second_color;
+    color: $main_color;
   }
 
   .spinning {
     animation: spin 1s linear infinite;
+  }
+}
+
+.show-completed-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  &.active {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: white;
+
+    &:hover {
+      background: #dc2626;
+    }
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+// Completed session styling
+.session-preview {
+  &.session-completed {
+    opacity: 0.6;
+    background: rgba(0, 0, 0, 0.03);
+    text-decoration: line-through;
+
+    .session-time {
+      text-decoration: line-through;
+    }
+
+    .session-student {
+      text-decoration: line-through;
+    }
+  }
+}
+
+// Week view completed sessions
+.week-session-card {
+  &.session-completed {
+    opacity: 0.6;
+    background: rgba(0, 0, 0, 0.05) !important;
+    text-decoration: line-through;
+
+    .session-time,
+    .session-student,
+    .session-instructor {
+      text-decoration: line-through;
+    }
+  }
+}
+
+// Day view completed sessions
+.day-session-card {
+  &.session-completed {
+    opacity: 0.6;
+    background: rgba(0, 0, 0, 0.05) !important;
+    text-decoration: line-through;
+
+    .session-time,
+    .session-student,
+    .session-type,
+    .session-instructor {
+      text-decoration: line-through;
+    }
+  }
+}
+
+// Completed badge indicator
+.session-completed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #ef4444;
+  color: white;
+  margin-left: 8px;
+
+  svg {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+// Optional: Add a subtle strikethrough effect for completed sessions in the calendar grid
+.calendar-day {
+  .day-sessions {
+    .session-preview.session-completed {
+      position: relative;
+
+      &::after {
+        content: '✓';
+        position: absolute;
+        right: 4px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: #22c55e;
+        opacity: 0.8;
+      }
+    }
   }
 }

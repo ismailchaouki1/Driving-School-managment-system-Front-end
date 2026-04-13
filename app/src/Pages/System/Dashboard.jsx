@@ -1,5 +1,5 @@
-// Pages/System/Dashboard.jsx
-import { useState, useMemo, useEffect } from 'react';
+// Pages/System/Dashboard.jsx - Fixed version without unused variables
+import { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -45,227 +45,12 @@ import {
   BarChart2,
   PieChart,
   LineChart,
-  Wrench, // ← ADD THIS LINE
+  Wrench,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
+import axios from '../../services/axios';
 import '../../Styles/System/Dashboard.scss';
 import { Link } from 'react-router-dom';
-
-/* ─────────────── Mock Data ─────────────── */
-const CURRENT_DATE = new Date();
-const CURRENT_MONTH = CURRENT_DATE.toLocaleString('default', { month: 'long' });
-const CURRENT_YEAR = CURRENT_DATE.getFullYear();
-
-// Recent sessions data
-const RECENT_SESSIONS = [
-  {
-    id: 1,
-    student: 'Youssef Alami',
-    type: 'Driving',
-    instructor: 'Mohammed Benali',
-    time: '09:00 AM',
-    date: 'Today',
-    status: 'Scheduled',
-    vehicle: 'ABC-123',
-  },
-  {
-    id: 2,
-    student: 'Fatima Benali',
-    type: 'Code',
-    instructor: 'Karim Tazi',
-    time: '11:00 AM',
-    date: 'Today',
-    status: 'In Progress',
-    vehicle: null,
-  },
-  {
-    id: 3,
-    student: 'Karim Cherkaoui',
-    type: 'Driving',
-    instructor: 'Fatima Zahra',
-    time: '02:00 PM',
-    date: 'Today',
-    status: 'Scheduled',
-    vehicle: 'DEF-456',
-  },
-  {
-    id: 4,
-    student: 'Nadia Tazi',
-    type: 'Evaluation',
-    instructor: 'Hassan El Fassi',
-    time: '04:00 PM',
-    date: 'Today',
-    status: 'Scheduled',
-    vehicle: 'GHI-789',
-  },
-  {
-    id: 5,
-    student: 'Hassan Ouazzani',
-    type: 'Driving',
-    instructor: 'Mohammed Benali',
-    time: '10:00 AM',
-    date: 'Tomorrow',
-    status: 'Scheduled',
-    vehicle: 'JKL-012',
-  },
-];
-
-// Recent payments
-const RECENT_PAYMENTS = [
-  {
-    id: 1,
-    student: 'Youssef Alami',
-    amount: 3000,
-    type: 'Installment',
-    date: '2025-04-07',
-    status: 'Completed',
-    method: 'Cash',
-  },
-  {
-    id: 2,
-    student: 'Fatima Benali',
-    amount: 450,
-    type: 'Exam Fee',
-    date: '2025-04-07',
-    status: 'Completed',
-    method: 'Card',
-  },
-  {
-    id: 3,
-    student: 'Karim Cherkaoui',
-    amount: 200,
-    type: 'Session',
-    date: '2025-04-06',
-    status: 'Pending',
-    method: 'Bank Transfer',
-  },
-  {
-    id: 4,
-    student: 'Nadia Tazi',
-    amount: 6000,
-    type: 'Registration',
-    date: '2025-04-06',
-    status: 'Completed',
-    method: 'Cheque',
-  },
-  {
-    id: 5,
-    student: 'Hassan Ouazzani',
-    amount: 200,
-    type: 'Session',
-    date: '2025-04-05',
-    status: 'Completed',
-    method: 'Cash',
-  },
-];
-
-// Upcoming events
-const UPCOMING_EVENTS = [
-  {
-    id: 1,
-    title: 'Code Exam - Session A',
-    date: '2025-04-10',
-    time: '09:00 AM',
-    location: 'Room 101',
-    participants: 12,
-  },
-  {
-    id: 2,
-    title: 'Driving Test - Category B',
-    date: '2025-04-12',
-    time: '10:00 AM',
-    location: 'Test Track',
-    participants: 8,
-  },
-  {
-    id: 3,
-    title: 'Instructor Meeting',
-    date: '2025-04-15',
-    time: '02:00 PM',
-    location: 'Conference Room',
-    participants: 5,
-  },
-  {
-    id: 4,
-    title: 'Vehicle Maintenance',
-    date: '2025-04-18',
-    time: '08:00 AM',
-    location: 'Garage',
-    participants: 3,
-  },
-];
-
-// Vehicle status
-const VEHICLE_STATUS = [
-  {
-    id: 1,
-    name: 'Dacia Sandero',
-    plate: '12345-A-1',
-    status: 'Active',
-    nextMaintenance: '2025-07-15',
-    utilization: 78,
-  },
-  {
-    id: 2,
-    name: 'Renault Clio',
-    plate: '67890-B-2',
-    status: 'Active',
-    nextMaintenance: '2025-08-20',
-    utilization: 85,
-  },
-  {
-    id: 3,
-    name: 'Honda CB500',
-    plate: '11223-C-3',
-    status: 'Active',
-    nextMaintenance: '2025-09-01',
-    utilization: 62,
-  },
-  {
-    id: 4,
-    name: 'Mercedes Actros',
-    plate: '44556-D-4',
-    status: 'Maintenance',
-    nextMaintenance: '2025-04-30',
-    utilization: 45,
-  },
-  {
-    id: 5,
-    name: 'Peugeot 208',
-    plate: '99887-E-5',
-    status: 'Active',
-    nextMaintenance: '2025-09-20',
-    utilization: 58,
-  },
-];
-
-// Instructor performance
-const INSTRUCTOR_PERFORMANCE = [
-  { id: 1, name: 'Mohammed Benali', sessions: 156, rating: 4.8, completionRate: 94, students: 28 },
-  { id: 2, name: 'Fatima Zahra', sessions: 142, rating: 4.7, completionRate: 92, students: 25 },
-  { id: 3, name: 'Karim Tazi', sessions: 128, rating: 4.6, completionRate: 89, students: 22 },
-  { id: 4, name: 'Nadia Ouazzani', sessions: 118, rating: 4.8, completionRate: 91, students: 20 },
-];
-
-// Weekly activity data
-const WEEKLY_ACTIVITY = {
-  labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  sessions: [12, 15, 18, 14, 20, 8, 5],
-  revenue: [2400, 3000, 3600, 2800, 4000, 1600, 1000],
-};
-
-// Category distribution
-const CATEGORY_DISTRIBUTION = [
-  { name: 'Category B', value: 68, color: '#8cff2e', count: 68 },
-  { name: 'Category A', value: 12, color: '#3b82f6', count: 12 },
-  { name: 'Category C', value: 8, color: '#f59e0b', count: 8 },
-  { name: 'Category D', value: 5, color: '#ef4444', count: 5 },
-  { name: 'Category BE', value: 4, color: '#8b5cf6', count: 4 },
-  { name: 'Category A1', value: 3, color: '#06b6d4', count: 3 },
-];
-
-// Monthly revenue data for mini chart
-const MONTHLY_REVENUE = [42, 48, 45, 58, 62, 75, 88, 82, 68, 72, 78, 85];
 
 /* ─────────────── Sub-components ─────────────── */
 
@@ -308,13 +93,14 @@ const KpiCard = ({
 
 // Status Badge Component
 const StatusBadge = ({ status }) => {
-  const statusClass = status.toLowerCase().replace(' ', '-');
+  const statusClass = status?.toLowerCase().replace(' ', '-') || 'scheduled';
   return (
     <span className={`status-badge ${statusClass}`}>
       {status === 'Completed' && <CheckCircle size={10} />}
       {status === 'In Progress' && <Activity size={10} />}
       {status === 'Scheduled' && <Clock size={10} />}
       {status === 'Pending' && <AlertCircle size={10} />}
+      {status === 'Paid' && <CheckCircle size={10} />}
       {status === 'Active' && <CheckCircle size={10} />}
       {status === 'Maintenance' && <AlertCircle size={10} />}
       {status}
@@ -334,8 +120,11 @@ const MiniBarChart = ({ data, height = 40, color = '#8cff2e' }) => {
           style={{
             height: `${(value / maxValue) * 100}%`,
             backgroundColor: color,
+            '--bar-height': `${(value / maxValue) * 100}%`,
           }}
-        />
+        >
+          <span className="mini-bar-value">{value}k MAD</span>
+        </div>
       ))}
     </div>
   );
@@ -387,9 +176,44 @@ const Toast = ({ toast }) => {
 /* ─────────────── Main Component ─────────────── */
 const Dashboard = () => {
   const [toast, setToast] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('week');
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // State for real data
+  const [dashboardData, setDashboardData] = useState({
+    students: [],
+    instructors: [],
+    vehicles: [],
+    sessions: [],
+    payments: [],
+    stats: {
+      totalStudents: 0,
+      activeStudents: 0,
+      newStudentsThisMonth: 0,
+      totalRevenue: 0,
+      monthlyRevenue: 0,
+      revenueGrowth: 0,
+      totalSessions: 0,
+      completedSessions: 0,
+      completionRate: 0,
+      totalVehicles: 0,
+      availableVehicles: 0,
+      pendingPayments: 0,
+      collectionRate: 0,
+    },
+    todaySessions: [],
+    recentPayments: [],
+    topInstructors: [],
+    categoryDistribution: [],
+    vehicleUtilization: [],
+    weeklyActivity: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      sessions: [0, 0, 0, 0, 0, 0, 0],
+      revenue: [0, 0, 0, 0, 0, 0, 0],
+    },
+    monthlyRevenue: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  });
 
   const { addNotification, unreadCount } = useNotifications();
 
@@ -406,38 +230,236 @@ const Dashboard = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Calculate KPIs
-  const kpis = useMemo(() => {
-    const totalStudents = 156;
-    const activeStudents = 142;
-    const newStudents = 12;
-    const totalRevenue = 845000;
-    const monthlyRevenue = 158000;
-    const revenueGrowth = 12.4;
-    const totalSessions = 284;
-    const completedSessions = 248;
-    const completionRate = (completedSessions / totalSessions) * 100;
-    const totalVehicles = 8;
-    const availableVehicles = 6;
-    const pendingPayments = 125000;
-    const collectionRate = 87;
+  // Fetch dashboard data
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
 
-    return {
-      totalStudents,
-      activeStudents,
-      newStudents,
-      totalRevenue,
-      monthlyRevenue,
-      revenueGrowth,
-      totalSessions,
-      completedSessions,
-      completionRate,
-      totalVehicles,
-      availableVehicles,
-      pendingPayments,
-      collectionRate,
-    };
+      // Fetch all necessary data in parallel
+      const [studentsRes, instructorsRes, vehiclesRes, sessionsRes, paymentsRes] =
+        await Promise.all([
+          axios.get('/students'),
+          axios.get('/instructors'),
+          axios.get('/vehicles'),
+          axios.get('/sessions'),
+          axios.get('/payments'),
+        ]);
+
+      console.log('Dashboard data fetched:', {
+        students: studentsRes.data,
+        instructors: instructorsRes.data,
+        vehicles: vehiclesRes.data,
+        sessions: sessionsRes.data,
+        payments: paymentsRes.data,
+      });
+
+      // Process students
+      const students = studentsRes.data.success ? studentsRes.data.data : [];
+      const activeStudents = students.filter(
+        (s) => s.payment_status !== 'Pending' || s.initial_payment > 0,
+      ).length;
+
+      // Calculate new students this month
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      const newStudentsThisMonth = students.filter((s) => {
+        const regDate = new Date(s.registration_date);
+        return regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear;
+      }).length;
+
+      // Process sessions
+      const sessions = sessionsRes.data.success ? sessionsRes.data.data : [];
+      const totalSessions = sessions.length;
+      const completedSessions = sessions.filter((s) => s.status === 'Completed').length;
+      const completionRate = totalSessions > 0 ? (completedSessions / totalSessions) * 100 : 0;
+
+      // Today's sessions
+      const today = new Date().toISOString().split('T')[0];
+      const todaySessions = sessions
+        .filter((s) => s.date === today)
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+        .slice(0, 5);
+
+      // Process payments
+      const payments = paymentsRes.data.success ? paymentsRes.data.data : [];
+      const totalRevenue = payments.reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      // Monthly revenue (current month)
+      const monthlyRevenue = payments
+        .filter((p) => {
+          const paymentDate = new Date(p.date);
+          return (
+            paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear
+          );
+        })
+        .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      // Previous month revenue for growth calculation
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const previousMonthlyRevenue = payments
+        .filter((p) => {
+          const paymentDate = new Date(p.date);
+          return paymentDate.getMonth() === prevMonth && paymentDate.getFullYear() === prevYear;
+        })
+        .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      const revenueGrowth =
+        previousMonthlyRevenue > 0
+          ? ((monthlyRevenue - previousMonthlyRevenue) / previousMonthlyRevenue) * 100
+          : 0;
+
+      // Pending payments (overdue or pending)
+      const pendingPayments = payments
+        .filter((p) => p.status === 'Pending' || p.status === 'Overdue')
+        .reduce((sum, p) => sum + (Number(p.amount_remaining) || 0), 0);
+
+      // Collection rate
+      const totalBilled = payments.reduce((sum, p) => sum + (Number(p.amount_total) || 0), 0);
+      const collectionRate = totalBilled > 0 ? (totalRevenue / totalBilled) * 100 : 0;
+
+      // Recent payments
+      const recentPayments = payments
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5);
+
+      // Process vehicles
+      const vehicles = vehiclesRes.data.success ? vehiclesRes.data.data : [];
+      const totalVehicles = vehicles.length;
+      const availableVehicles = vehicles.filter((v) => v.status === 'Active').length;
+
+      // Vehicle utilization (top 4)
+      const vehicleUtilization = vehicles
+        .sort((a, b) => (b.sessions_count || 0) - (a.sessions_count || 0))
+        .slice(0, 4)
+        .map((v) => ({
+          id: v.id,
+          name: `${v.brand} ${v.model}`,
+          plate: v.plate,
+          status: v.status,
+          utilization: Math.min(100, Math.round(((v.sessions_count || 0) / 300) * 100)),
+          nextMaintenance: v.next_maintenance,
+        }));
+
+      // Process instructors for top performers
+      const instructors = instructorsRes.data.success ? instructorsRes.data.data : [];
+      const topInstructors = instructors
+        .sort((a, b) => (b.sessions_count || 0) - (a.sessions_count || 0))
+        .slice(0, 4)
+        .map((i) => ({
+          id: i.id,
+          name: `${i.first_name} ${i.last_name}`,
+          sessions: i.sessions_count || 0,
+          rating: i.rating || 0,
+          completionRate: i.completion_rate || 0,
+          students: i.students_count || 0,
+        }));
+
+      // Calculate category distribution from students
+      const categoryMap = {};
+      students.forEach((s) => {
+        const cat = s.type || 'B';
+        categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+      });
+
+      const categoryColors = {
+        B: '#8cff2e',
+        A: '#3b82f6',
+        A1: '#06b6d4',
+        C: '#f59e0b',
+        D: '#ef4444',
+        BE: '#8b5cf6',
+      };
+
+      const totalStudentsCount = students.length;
+      const categoryDistribution = Object.entries(categoryMap)
+        .map(([name, count]) => ({
+          name: `Category ${name}`,
+          value: totalStudentsCount > 0 ? Math.round((count / totalStudentsCount) * 100) : 0,
+          color: categoryColors[name] || '#64748b',
+          count: count,
+        }))
+        .sort((a, b) => b.value - a.value);
+
+      // Calculate weekly activity from sessions
+      const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const weeklySessions = [0, 0, 0, 0, 0, 0, 0];
+      const weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
+
+      const today_date = new Date();
+      const startOfWeek = new Date(today_date);
+      startOfWeek.setDate(today_date.getDate() - today_date.getDay() + 1); // Monday
+
+      sessions.forEach((session) => {
+        const sessionDate = new Date(session.date);
+        if (sessionDate >= startOfWeek && sessionDate <= today_date) {
+          const dayIndex = sessionDate.getDay();
+          const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon-Sun (0-6)
+          if (adjustedIndex >= 0 && adjustedIndex < 7) {
+            weeklySessions[adjustedIndex]++;
+            if (session.payment_status === 'Paid') {
+              weeklyRevenue[adjustedIndex] += Number(session.price) || 0;
+            }
+          }
+        }
+      });
+
+      // Calculate monthly revenue trend
+      const monthlyRevenueTrend = Array(12).fill(0);
+      payments.forEach((payment) => {
+        const paymentDate = new Date(payment.date);
+        const month = paymentDate.getMonth();
+        if (paymentDate.getFullYear() === currentYear) {
+          monthlyRevenueTrend[month] += Number(payment.amount_paid) || 0;
+        }
+      });
+      const monthlyRevenueK = monthlyRevenueTrend.map((amount) => Math.round(amount / 1000));
+
+      setDashboardData({
+        students,
+        instructors,
+        vehicles,
+        sessions,
+        payments,
+        stats: {
+          totalStudents: students.length,
+          activeStudents,
+          newStudentsThisMonth,
+          totalRevenue,
+          monthlyRevenue,
+          revenueGrowth,
+          totalSessions,
+          completedSessions,
+          completionRate,
+          totalVehicles,
+          availableVehicles,
+          pendingPayments,
+          collectionRate,
+        },
+        todaySessions,
+        recentPayments,
+        topInstructors,
+        categoryDistribution,
+        vehicleUtilization,
+        weeklyActivity: {
+          labels: weekDays,
+          sessions: weeklySessions,
+          revenue: weeklyRevenue,
+        },
+        monthlyRevenue: monthlyRevenueK,
+      });
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      showToast('Failed to load dashboard data', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
   }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const formatTime = () => {
     return currentTime.toLocaleTimeString('en-US', {
@@ -456,13 +478,10 @@ const Dashboard = () => {
     });
   };
 
-  const handleRefresh = () => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      showToast('Dashboard data refreshed successfully');
-      addNotification('Dashboard Refreshed', 'All dashboard data has been updated', 'system');
-    }, 1000);
+  const handleRefresh = async () => {
+    await fetchDashboardData();
+    showToast('Dashboard data refreshed successfully');
+    addNotification('Dashboard Refreshed', 'All dashboard data has been updated', 'system');
   };
 
   const handleExport = () => {
@@ -477,16 +496,20 @@ const Dashboard = () => {
     return 'Good Evening';
   };
 
+  // Get user name from localStorage
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = user.name || 'User';
+
   return (
     <div className="dashboard-page">
       <Toast toast={toast} />
 
       {/* Loading Overlay */}
-      {isLoading && (
+      {isRefreshing && (
         <div className="loading-overlay">
           <div className="loading-spinner">
             <Loader size={40} className="spinner" />
-            <p>Refreshing dashboard...</p>
+            <p>Loading dashboard data...</p>
           </div>
         </div>
       )}
@@ -495,14 +518,16 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div className="header-content">
           <div className="greeting-section">
-            <h1>{getGreeting()}, Alex! 👋</h1>
+            <h1>
+              {getGreeting()}, {userName}! 👋
+            </h1>
             <p>
               {formatDate()} • {formatTime()}
             </p>
           </div>
           <div className="header-actions">
-            <button className="action-btn" onClick={handleRefresh}>
-              <RefreshCw size={16} />
+            <button className="action-btn" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
               Refresh
             </button>
             <button className="action-btn export" onClick={handleExport}>
@@ -531,10 +556,10 @@ const Dashboard = () => {
             <UsersIcon size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{kpis.activeStudents}</div>
+            <div className="stat-value">{dashboardData.stats.activeStudents}</div>
             <div className="stat-label">Active Students</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> +{kpis.newStudents} this month
+              <TrendingUp size={10} /> +{dashboardData.stats.newStudentsThisMonth} this month
             </div>
           </div>
         </div>
@@ -543,10 +568,10 @@ const Dashboard = () => {
             <CalendarIcon size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{kpis.totalSessions}</div>
+            <div className="stat-value">{dashboardData.stats.totalSessions}</div>
             <div className="stat-label">Total Sessions</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> +8% vs last month
+              <TrendingUp size={10} /> {Math.round(dashboardData.stats.completionRate)}% completed
             </div>
           </div>
         </div>
@@ -555,10 +580,12 @@ const Dashboard = () => {
             <DollarSign size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{kpis.monthlyRevenue.toLocaleString()} MAD</div>
+            <div className="stat-value">
+              {dashboardData.stats.monthlyRevenue.toLocaleString()} MAD
+            </div>
             <div className="stat-label">Monthly Revenue</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> +{kpis.revenueGrowth}%
+              <TrendingUp size={10} /> +{Math.abs(dashboardData.stats.revenueGrowth).toFixed(1)}%
             </div>
           </div>
         </div>
@@ -567,7 +594,7 @@ const Dashboard = () => {
             <Target size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{Math.round(kpis.completionRate)}%</div>
+            <div className="stat-value">{Math.round(dashboardData.stats.completionRate)}%</div>
             <div className="stat-label">Completion Rate</div>
             <div className="stat-trend positive">
               <TrendingUp size={10} /> +5%
@@ -581,29 +608,29 @@ const Dashboard = () => {
         <KpiCard
           icon={Wallet}
           label="Total Revenue"
-          value={kpis.totalRevenue}
+          value={dashboardData.stats.totalRevenue}
           prefix="MAD "
-          change={12.4}
-          changeType="up"
+          change={dashboardData.stats.revenueGrowth}
+          changeType={dashboardData.stats.revenueGrowth >= 0 ? 'up' : 'down'}
         />
         <KpiCard
           icon={Users}
           label="Total Students"
-          value={kpis.totalStudents}
+          value={dashboardData.stats.totalStudents}
           change={8.5}
           changeType="up"
         />
         <KpiCard
           icon={Car}
           label="Available Vehicles"
-          value={`${kpis.availableVehicles}/${kpis.totalVehicles}`}
+          value={`${dashboardData.stats.availableVehicles}/${dashboardData.stats.totalVehicles}`}
           change={-2}
           changeType="down"
         />
         <KpiCard
           icon={CreditCard}
           label="Collection Rate"
-          value={kpis.collectionRate}
+          value={Math.round(dashboardData.stats.collectionRate)}
           suffix="%"
           change={3.2}
           changeType="up"
@@ -611,7 +638,7 @@ const Dashboard = () => {
         <KpiCard
           icon={Clock}
           label="Pending Payments"
-          value={kpis.pendingPayments}
+          value={dashboardData.stats.pendingPayments}
           prefix="MAD "
           change={-5.1}
           changeType="down"
@@ -619,7 +646,7 @@ const Dashboard = () => {
         <KpiCard
           icon={Award}
           label="Completion Rate"
-          value={Math.round(kpis.completionRate)}
+          value={Math.round(dashboardData.stats.completionRate)}
           suffix="%"
           change={2.5}
           changeType="up"
@@ -642,21 +669,27 @@ const Dashboard = () => {
           </div>
           <div className="weekly-chart">
             <div className="chart-bars">
-              {WEEKLY_ACTIVITY.sessions.map((value, index) => (
-                <div key={index} className="bar-container">
-                  <div className="bar-wrapper">
-                    <div
-                      className="bar revenue-bar"
-                      style={{ height: `${(WEEKLY_ACTIVITY.revenue[index] / 4000) * 100}%` }}
-                    />
-                    <div
-                      className="bar sessions-bar"
-                      style={{ height: `${(value / 20) * 100}%` }}
-                    />
+              {dashboardData.weeklyActivity.sessions.map((value, index) => {
+                const maxRevenue = Math.max(...dashboardData.weeklyActivity.revenue, 1);
+                const maxSessions = Math.max(...dashboardData.weeklyActivity.sessions, 1);
+                return (
+                  <div key={index} className="bar-container">
+                    <div className="bar-wrapper">
+                      <div
+                        className="bar revenue-bar"
+                        style={{
+                          height: `${(dashboardData.weeklyActivity.revenue[index] / maxRevenue) * 100}%`,
+                        }}
+                      />
+                      <div
+                        className="bar sessions-bar"
+                        style={{ height: `${(value / maxSessions) * 100}%` }}
+                      />
+                    </div>
+                    <span className="bar-label">{dashboardData.weeklyActivity.labels[index]}</span>
                   </div>
-                  <span className="bar-label">{WEEKLY_ACTIVITY.labels[index]}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="chart-legend">
               <div className="legend-item">
@@ -680,10 +713,10 @@ const Dashboard = () => {
           </div>
           <div className="category-distribution">
             <div className="pie-container">
-              <MiniPieChart data={CATEGORY_DISTRIBUTION} size={140} />
+              <MiniPieChart data={dashboardData.categoryDistribution} size={140} />
             </div>
             <div className="category-list">
-              {CATEGORY_DISTRIBUTION.slice(0, 5).map((cat, index) => (
+              {dashboardData.categoryDistribution.slice(0, 5).map((cat, index) => (
                 <div key={index} className="category-item">
                   <span className="category-dot" style={{ background: cat.color }}></span>
                   <span className="category-name">{cat.name}</span>
@@ -706,7 +739,7 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="vehicle-list">
-            {VEHICLE_STATUS.slice(0, 4).map((vehicle) => (
+            {dashboardData.vehicleUtilization.map((vehicle) => (
               <div key={vehicle.id} className="vehicle-item">
                 <div className="vehicle-info">
                   <div className="vehicle-name">
@@ -735,7 +768,7 @@ const Dashboard = () => {
 
       {/* Recent Sessions & Upcoming Events Row */}
       <div className="tables-row">
-        {/* Recent Sessions */}
+        {/* Today's Sessions */}
         <div className="table-card">
           <div className="table-header">
             <h3>
@@ -747,24 +780,28 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="sessions-list">
-            {RECENT_SESSIONS.filter((s) => s.date === 'Today').map((session) => (
-              <div key={session.id} className="session-item">
-                <div className="session-time">
-                  <Clock size={14} />
-                  <span>{session.time}</span>
-                </div>
-                <div className="session-info">
-                  <div className="session-student">{session.student}</div>
-                  <div className="session-details">
-                    <span className={`session-type ${session.type.toLowerCase()}`}>
-                      {session.type}
-                    </span>
-                    <span className="session-instructor">{session.instructor}</span>
+            {dashboardData.todaySessions.length === 0 ? (
+              <div className="empty-state">No sessions scheduled for today</div>
+            ) : (
+              dashboardData.todaySessions.map((session) => (
+                <div key={session.id} className="session-item">
+                  <div className="session-time">
+                    <Clock size={14} />
+                    <span>{session.start_time}</span>
                   </div>
+                  <div className="session-info">
+                    <div className="session-student">{session.student_name}</div>
+                    <div className="session-details">
+                      <span className={`session-type ${session.type?.toLowerCase()}`}>
+                        {session.type}
+                      </span>
+                      <span className="session-instructor">{session.instructor_name}</span>
+                    </div>
+                  </div>
+                  <StatusBadge status={session.status} />
                 </div>
-                <StatusBadge status={session.status} />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -780,72 +817,64 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="payments-list">
-            {RECENT_PAYMENTS.slice(0, 4).map((payment) => (
-              <div key={payment.id} className="payment-item">
-                <div className="payment-info">
-                  <div className="payment-student">{payment.student}</div>
-                  <div className="payment-details">
-                    <span className="payment-type">{payment.type}</span>
-                    <span className="payment-date">{payment.date}</span>
+            {dashboardData.recentPayments.length === 0 ? (
+              <div className="empty-state">No recent payments</div>
+            ) : (
+              dashboardData.recentPayments.map((payment) => (
+                <div key={payment.id} className="payment-item">
+                  <div className="payment-info">
+                    <div className="payment-student">{payment.student_name}</div>
+                    <div className="payment-details">
+                      <span className="payment-type">{payment.type}</span>
+                      <span className="payment-date">{payment.date}</span>
+                    </div>
+                  </div>
+                  <div className="payment-amount">
+                    <span
+                      className={`amount ${payment.status === 'Paid' ? 'positive' : 'pending'}`}
+                    >
+                      {(Number(payment.amount_paid) || 0).toLocaleString()} MAD
+                    </span>
+                    <StatusBadge status={payment.status} />
                   </div>
                 </div>
-                <div className="payment-amount">
-                  <span
-                    className={`amount ${payment.status === 'Completed' ? 'positive' : 'pending'}`}
-                  >
-                    {payment.amount.toLocaleString()} MAD
-                  </span>
-                  <StatusBadge status={payment.status} />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* Upcoming Events */}
+        {/* Quick Stats */}
         <div className="table-card">
           <div className="table-header">
             <h3>
               <Bell size={18} />
-              Upcoming Events
+              Quick Stats
             </h3>
-            <Link className="view-link" to={'/system/calendar'}>
-              View All <ChevronRight size={14} />
-            </Link>
           </div>
-          <div className="events-list">
-            {UPCOMING_EVENTS.map((event) => (
-              <div key={event.id} className="event-item">
-                <div className="event-date">
-                  <div className="event-day">{new Date(event.date).getDate()}</div>
-                  <div className="event-month">
-                    {new Date(event.date).toLocaleString('default', { month: 'short' })}
-                  </div>
-                </div>
-                <div className="event-info">
-                  <div className="event-title">{event.title}</div>
-                  <div className="event-details">
-                    <span>
-                      <Clock size={10} /> {event.time}
-                    </span>
-                    <span>
-                      <MapPin size={10} /> {event.location}
-                    </span>
-                  </div>
-                </div>
-                <div className="event-participants">
-                  <Users size={12} />
-                  <span>{event.participants}</span>
-                </div>
-              </div>
-            ))}
+          <div className="quick-stats-list">
+            <div className="stat-row">
+              <span className="stat-label">Total Instructors</span>
+              <span className="stat-value">{dashboardData.instructors.length}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Active Vehicles</span>
+              <span className="stat-value">{dashboardData.stats.availableVehicles}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Completed Sessions</span>
+              <span className="stat-value">{dashboardData.stats.completedSessions}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Collection Rate</span>
+              <span className="stat-value">{Math.round(dashboardData.stats.collectionRate)}%</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Instructor Performance & Monthly Trend Row */}
       <div className="tables-row">
-        {/* Instructor Performance */}
+        {/* Top Instructors */}
         <div className="table-card">
           <div className="table-header">
             <h3>
@@ -857,50 +886,70 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="instructors-list">
-            {INSTRUCTOR_PERFORMANCE.map((instructor) => (
-              <div key={instructor.id} className="instructor-item">
-                <div className="instructor-avatar">
-                  {instructor.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')}
-                </div>
-                <div className="instructor-info">
-                  <div className="instructor-name">{instructor.name}</div>
-                  <div className="instructor-stats">
-                    <span>
-                      <Users size={10} /> {instructor.students} students
-                    </span>
-                    <span>
-                      <Activity size={10} /> {instructor.sessions} sessions
-                    </span>
+            {dashboardData.topInstructors.length === 0 ? (
+              <div className="empty-state">No instructor data available</div>
+            ) : (
+              dashboardData.topInstructors.map((instructor) => (
+                <div key={instructor.id} className="instructor-item">
+                  <div className="instructor-avatar">
+                    {instructor.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
+                  </div>
+                  <div className="instructor-info">
+                    <div className="instructor-name">{instructor.name}</div>
+                    <div className="instructor-stats">
+                      <span>
+                        <Users size={10} /> {instructor.students} students
+                      </span>
+                      <span>
+                        <Activity size={10} /> {instructor.sessions} sessions
+                      </span>
+                    </div>
+                  </div>
+                  <div className="instructor-rating">
+                    <div className="rating-stars">
+                      <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                      <span>{instructor.rating}</span>
+                    </div>
+                    <div className="completion-rate">{instructor.completionRate}%</div>
                   </div>
                 </div>
-                <div className="instructor-rating">
-                  <div className="rating-stars">
-                    <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                    <span>{instructor.rating}</span>
-                  </div>
-                  <div className="completion-rate">{instructor.completionRate}%</div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
         {/* Monthly Revenue Trend */}
-        <div className="table-card">
+        <div className="table-card revenue-trend-card">
           <div className="chart-header">
             <h3>
               <LineChart size={18} />
               Revenue Trend
             </h3>
-            <span className="trend-value positive">
-              <TrendingUp size={12} /> +15.2% vs last year
+            <span
+              className={`trend-value ${dashboardData.stats.revenueGrowth >= 0 ? 'positive' : 'negative'}`}
+            >
+              {dashboardData.stats.revenueGrowth >= 0 ? (
+                <TrendingUp size={12} />
+              ) : (
+                <TrendingDown size={12} />
+              )}
+              {dashboardData.stats.revenueGrowth >= 0 ? '+' : ''}
+              {dashboardData.stats.revenueGrowth.toFixed(1)}% vs last month
             </span>
           </div>
           <div className="revenue-trend">
-            <MiniBarChart data={MONTHLY_REVENUE} height={120} color="#8cff2e" />
+            <MiniBarChart
+              data={
+                dashboardData.monthlyRevenue.length > 0
+                  ? dashboardData.monthlyRevenue
+                  : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+              }
+              height={120}
+              color="#8cff2e"
+            />
             <div className="trend-labels">
               {['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'].map((label, i) => (
                 <span key={i}>{label}</span>
@@ -910,15 +959,30 @@ const Dashboard = () => {
           <div className="revenue-summary">
             <div className="summary-item">
               <span>Average Monthly</span>
-              <strong>{(MONTHLY_REVENUE.reduce((a, b) => a + b, 0) / 12).toFixed(0)}k MAD</strong>
+              <strong>
+                {dashboardData.monthlyRevenue.length > 0 &&
+                dashboardData.monthlyRevenue.some((v) => v > 0)
+                  ? Math.round(dashboardData.monthlyRevenue.reduce((a, b) => a + b, 0) / 12)
+                  : 0}
+                k MAD
+              </strong>
             </div>
             <div className="summary-item">
               <span>Peak Month</span>
-              <strong>{Math.max(...MONTHLY_REVENUE)}k MAD</strong>
+              <strong>
+                {dashboardData.monthlyRevenue.length > 0 &&
+                dashboardData.monthlyRevenue.some((v) => v > 0)
+                  ? Math.max(...dashboardData.monthlyRevenue)
+                  : 0}
+                k MAD
+              </strong>
             </div>
             <div className="summary-item">
               <span>Growth Rate</span>
-              <strong className="positive">+12.4%</strong>
+              <strong className={dashboardData.stats.revenueGrowth >= 0 ? 'positive' : 'negative'}>
+                {dashboardData.stats.revenueGrowth >= 0 ? '+' : ''}
+                {dashboardData.stats.revenueGrowth.toFixed(1)}%
+              </strong>
             </div>
           </div>
         </div>
@@ -932,26 +996,26 @@ const Dashboard = () => {
             </h3>
           </div>
           <div className="quick-actions">
-            <button className="action-button" onClick={() => showToast('New session scheduled')}>
+            <Link to="/system/sessions" className="action-button">
               <Calendar size={20} />
               <span>Schedule Session</span>
-            </button>
-            <button className="action-button" onClick={() => showToast('New student registered')}>
+            </Link>
+            <Link to="/system/students" className="action-button">
               <Users size={20} />
               <span>Add Student</span>
-            </button>
-            <button className="action-button" onClick={() => showToast('Payment recorded')}>
+            </Link>
+            <Link to="/system/payments" className="action-button">
               <CreditCard size={20} />
               <span>Record Payment</span>
-            </button>
-            <button className="action-button" onClick={() => showToast('Maintenance scheduled')}>
+            </Link>
+            <Link to="/system/vehicles" className="action-button">
               <Wrench size={20} />
               <span>Schedule Maintenance</span>
-            </button>
-            <button className="action-button" onClick={() => showToast('Report generated')}>
+            </Link>
+            <Link to="/system/statistics" className="action-button">
               <FileText size={20} />
               <span>Generate Report</span>
-            </button>
+            </Link>
             <button className="action-button" onClick={() => showToast('Message sent')}>
               <Mail size={20} />
               <span>Send Reminder</span>

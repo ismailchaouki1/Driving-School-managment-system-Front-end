@@ -1,4 +1,4 @@
-// Calendar.jsx - Complete with API Integration
+// Calendar.jsx - Fixed version with proper API integration
 import { useState, useEffect, useCallback } from 'react';
 import {
   ChevronLeft,
@@ -27,6 +27,7 @@ import {
   UserCheck,
   UserPlus,
   CreditCard,
+  EyeOff,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -45,6 +46,7 @@ const formatDate = (dateString) => {
 
 const formatTime = (timeString) => {
   if (!timeString) return '';
+  // Handle both HH:MM:SS and HH:MM formats
   return timeString.slice(0, 5);
 };
 
@@ -82,6 +84,14 @@ const calculateEndTime = (startTime, duration) => {
   const endHours = Math.floor(totalMinutes / 60);
   const endMinutes = totalMinutes % 60;
   return `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
+};
+
+// Function to get local date string without timezone offset
+const getLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 /* ─────────────── Status Badge Component ─────────────── */
@@ -132,7 +142,7 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
       instructor_name: '',
       type: 'Driving',
       status: 'Scheduled',
-      date: new Date().toISOString().split('T')[0],
+      date: getLocalDateString(new Date()),
       start_time: '09:00',
       end_time: '10:30',
       duration: 90,
@@ -156,12 +166,14 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
       set('student_category', 'B');
       set('student_phone', '');
       set('student_email', '');
+      set('payment_status', 'Paid');
     } else {
       set('student_id', '');
       set('student_name', '');
       set('student_category', 'B');
       set('student_phone', '');
       set('student_email', '');
+      set('payment_status', 'Pending');
     }
   };
 
@@ -199,6 +211,10 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
     set('type', type);
     const price = type === 'Driving' ? 200 : 150;
     set('price', price);
+    if (type !== 'Driving') {
+      set('vehicle_id', null);
+      set('vehicle_plate', null);
+    }
   };
 
   const handleDurationChange = (duration) => {
@@ -293,7 +309,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
         </div>
 
         <div className="calendar-modal-body">
-          {/* Student Type Selection */}
           {!isEdit && (
             <div className="calendar-form-section">
               <div className="section-header">
@@ -321,7 +336,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           )}
 
-          {/* Student Information */}
           <div className="calendar-form-section">
             <div className="section-header">
               <User size={14} />
@@ -402,7 +416,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             )}
           </div>
 
-          {/* Instructor & Session */}
           <div className="calendar-form-section">
             <div className="section-header">
               <User size={14} />
@@ -441,7 +454,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Schedule */}
           <div className="calendar-form-section">
             <div className="section-header">
               <CalendarIcon size={14} />
@@ -487,7 +499,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Vehicle & Location */}
           <div className="calendar-form-section">
             <div className="section-header">
               <Car size={14} />
@@ -525,7 +536,6 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
             </div>
           </div>
 
-          {/* Payment */}
           <div className="calendar-form-section">
             <div className="section-header">
               <CreditCard size={14} />
@@ -542,14 +552,13 @@ const SessionModal = ({ session, onClose, onSave, isSaving, students, instructor
                   value={form.payment_status}
                   onChange={(e) => set('payment_status', e.target.value)}
                 >
-                  <option value="Paid">Paid</option>
-                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid (Creates payment record)</option>
+                  <option value="Pending">Pending (No payment record)</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* Notes */}
           <div className="calendar-form-section">
             <div className="section-header">
               <FileText size={14} />
@@ -666,10 +675,6 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
                 <span className="info-label">Name</span>
                 <span className="info-value">{session.instructor_name}</span>
               </div>
-              <div className="info-row">
-                <span className="info-label">Specialization</span>
-                <span className="info-value">{session.instructor_type || 'N/A'}</span>
-              </div>
             </div>
           </div>
 
@@ -714,10 +719,6 @@ const SessionDetail = ({ session, onClose, onEdit, onDelete, onPrint }) => {
                 <div className="info-row">
                   <span className="info-label">Plate</span>
                   <span className="info-value">{session.vehicle_plate}</span>
-                </div>
-                <div className="info-row">
-                  <span className="info-label">Model</span>
-                  <span className="info-value">{session.vehicle_model || 'N/A'}</span>
                 </div>
               </div>
             </div>
@@ -781,6 +782,7 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewType, setViewType] = useState('month');
   const [selectedDate, setSelectedDate] = useState(null);
@@ -791,7 +793,7 @@ const Calendar = () => {
   const [toast, setToast] = useState(null);
   const [filterType, setFilterType] = useState('All');
   const [filterInstructor, setFilterInstructor] = useState('All');
-
+  const [showCompleted, setShowCompleted] = useState(false);
   const { addNotification } = useNotifications();
 
   const showToast = (msg, type = 'success') => {
@@ -799,9 +801,11 @@ const Calendar = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // FIXED: Fetch data with proper session formatting
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+
       const [sessionsRes, studentsRes, instructorsRes, vehiclesRes] = await Promise.all([
         axios.get('/sessions'),
         axios.get('/students'),
@@ -809,14 +813,51 @@ const Calendar = () => {
         axios.get('/vehicles'),
       ]);
 
-      console.log('Fetched sessions:', sessionsRes.data.data); // Debug log
+      console.log('Raw sessions response:', sessionsRes.data);
 
-      if (sessionsRes.data.success) setSessions(sessionsRes.data.data || []);
-      if (studentsRes.data.success) setStudents(studentsRes.data.data || []);
-      if (instructorsRes.data.success) setInstructors(instructorsRes.data.data || []);
-      if (vehiclesRes.data.success) setVehicles(vehiclesRes.data.data || []);
+      // Process sessions to ensure consistent format
+      let sessionsData = [];
+      if (sessionsRes.data.success && Array.isArray(sessionsRes.data.data)) {
+        sessionsData = sessionsRes.data.data.map((session) => ({
+          ...session,
+          // Ensure dates are in YYYY-MM-DD format
+          date: session.date ? new Date(session.date).toISOString().split('T')[0] : null,
+          // Ensure times are in HH:MM format
+          start_time: session.start_time ? formatTime(session.start_time) : '09:00',
+          end_time: session.end_time ? formatTime(session.end_time) : '10:30',
+          // Convert numeric fields
+          duration: Number(session.duration) || 90,
+          price: Number(session.price) || 200,
+          // Ensure IDs are numbers
+          instructor_id: session.instructor_id ? Number(session.instructor_id) : null,
+          student_id: session.student_id ? Number(session.student_id) : null,
+          vehicle_id: session.vehicle_id ? Number(session.vehicle_id) : null,
+        }));
+      }
+
+      console.log('Processed sessions:', sessionsData);
+
+      if (sessionsRes.data.success) {
+        setSessions(sessionsData);
+      } else {
+        setSessions([]);
+      }
+
+      if (studentsRes.data.success) {
+        setStudents(studentsRes.data.data || []);
+      }
+
+      if (instructorsRes.data.success) {
+        setInstructors(instructorsRes.data.data || []);
+      }
+
+      if (vehiclesRes.data.success) {
+        setVehicles(vehiclesRes.data.data || []);
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      showToast('Failed to load calendar data', 'error');
+      setSessions([]);
     } finally {
       setLoading(false);
     }
@@ -826,7 +867,6 @@ const Calendar = () => {
     fetchData();
   }, [fetchData]);
 
-  // Get days in month
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -850,7 +890,6 @@ const Calendar = () => {
     return days;
   };
 
-  // Get days in week
   const getDaysInWeek = (date) => {
     const startOfWeek = new Date(date);
     const dayOfWeek = date.getDay();
@@ -865,7 +904,6 @@ const Calendar = () => {
     return days;
   };
 
-  // Get hours for day view
   const getHoursForDay = () => {
     const hours = [];
     for (let i = 7; i <= 20; i++) {
@@ -874,9 +912,8 @@ const Calendar = () => {
     return hours;
   };
 
-  // Get sessions for a specific date
   const getSessionsForDate = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(date);
     let filtered = sessions.filter((s) => s.date === dateStr);
 
     if (filterType !== 'All') {
@@ -884,6 +921,9 @@ const Calendar = () => {
     }
     if (filterInstructor !== 'All') {
       filtered = filtered.filter((s) => s.instructor_id === parseInt(filterInstructor));
+    }
+    if (!showCompleted) {
+      filtered = filtered.filter((s) => s.status !== 'Completed');
     }
 
     return filtered.sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -922,6 +962,13 @@ const Calendar = () => {
     setShowModal(true);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchData();
+    setIsRefreshing(false);
+    showToast('Calendar refreshed successfully');
+  };
+
   const handleSaveSession = async (data) => {
     setIsSaving(true);
     const isNew = !data.id;
@@ -935,11 +982,7 @@ const Calendar = () => {
       }
 
       if (response.data.success) {
-        // Wait for fetchData to complete
         await fetchData();
-
-        // Force a re-render by updating a state that affects the calendar view
-        // The fetchData already updates sessions state, which triggers re-render
 
         if (isNew) {
           addNotification(
@@ -962,16 +1005,7 @@ const Calendar = () => {
       setSelectedDate(null);
     }
   };
-  // Add this state
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Add refresh function
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchData();
-    setIsRefreshing(false);
-    showToast('Calendar refreshed successfully');
-  };
   const handleDeleteSession = async (id) => {
     setIsDeleting(true);
 
@@ -1256,6 +1290,25 @@ const Calendar = () => {
             <RefreshCw size={18} className={isRefreshing ? 'spinning' : ''} />
             Refresh
           </button>
+
+          <button
+            className={`show-completed-btn ${showCompleted ? 'active' : ''}`}
+            onClick={() => setShowCompleted(!showCompleted)}
+            title={showCompleted ? 'Hide completed sessions' : 'Show completed sessions'}
+          >
+            {showCompleted ? (
+              <>
+                <EyeOff size={16} />
+                Hide Completed
+              </>
+            ) : (
+              <>
+                <Eye size={16} />
+                Show Completed
+              </>
+            )}
+          </button>
+
           <div className="filter-group">
             <select
               className="filter-select"
@@ -1282,6 +1335,7 @@ const Calendar = () => {
               ))}
             </select>
           </div>
+
           <button
             className="add-session-btn"
             onClick={() => {

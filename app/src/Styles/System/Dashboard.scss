@@ -9,7 +9,6 @@
   overflow-x: hidden;
   overflow-y: visible;
   min-height: 100%;
-  padding: 0;
 
   // Loading Overlay
   .loading-overlay {
@@ -62,16 +61,16 @@
       position: absolute;
       top: 0;
       right: 0;
-      width: 300px;
+      width: 280px;
       height: 100%;
-      background: linear-gradient(90deg, transparent, rgba($main_color, 0.1));
+      background: linear-gradient(90deg, transparent, rgba($main_color, 0.08));
       pointer-events: none;
     }
 
     .header-content {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       flex-wrap: wrap;
       gap: 20px;
       position: relative;
@@ -79,7 +78,7 @@
 
       .greeting-section {
         h1 {
-          font-size: 28px;
+          font-size: 26px;
           font-weight: 800;
           font-family: 'Manrope-ExtraBold', sans-serif;
           color: #fff;
@@ -152,11 +151,13 @@
       display: flex;
       align-items: center;
       gap: 16px;
-      transition: all 0.2s ease;
+      transition: all 0.25s ease;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 
       &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.09);
+        border-color: rgba($main_color, 0.4);
       }
 
       &.welcome-card {
@@ -355,6 +356,11 @@
     border-radius: 20px;
     border: 1px solid #e9edf2;
     padding: 20px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
 
     .chart-header {
       display: flex;
@@ -609,165 +615,6 @@
     }
   }
 
-  // Revenue Trend Card - Matching your JSX structure
-  .table-card {
-    background: #fff;
-    border-radius: 20px;
-    border: 1px solid #e9edf2;
-    padding: 20px;
-    margin-bottom: 20px;
-    width: 100%;
-
-    .chart-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid #f0f0f0;
-
-      h3 {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 15px;
-        font-weight: 700;
-        font-family: 'Manrope-Bold', sans-serif;
-        color: #0f172a;
-        margin: 0;
-      }
-
-      .trend-value {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        font-weight: 600;
-        padding: 4px 10px;
-        border-radius: 20px;
-
-        &.positive {
-          background: rgba(34, 197, 94, 0.1);
-          color: #22c55e;
-        }
-      }
-    }
-
-    .revenue-trend {
-      margin-bottom: 20px;
-
-      .trend-labels {
-        display: flex;
-        justify-content: space-around;
-        margin-top: 12px;
-        font-size: 10px;
-        font-weight: 500;
-        color: #94a3b8;
-
-        span {
-          flex: 1;
-          text-align: center;
-        }
-      }
-    }
-
-    .revenue-summary {
-      display: flex;
-      justify-content: space-around;
-      padding: 16px;
-      border-top: 1px solid #f0f0f0;
-      background: #fafbfc;
-      border-radius: 12px;
-
-      .summary-item {
-        text-align: center;
-        flex: 1;
-
-        span {
-          display: block;
-          font-size: 11px;
-          font-weight: 500;
-          color: #94a3b8;
-          margin-bottom: 6px;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-        }
-
-        strong {
-          font-size: 16px;
-          font-weight: 800;
-          font-family: 'Manrope-ExtraBold', sans-serif;
-          color: #1a1a2e;
-
-          &.positive {
-            color: #22c55e;
-          }
-        }
-      }
-    }
-  }
-
-  // Mini Bar Chart Component
-  .mini-bar-chart {
-    display: flex;
-    align-items: flex-end;
-    gap: 6px;
-    height: 100%;
-
-    .mini-bar-wrapper {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      height: 100%;
-
-      .mini-bar {
-        width: 100%;
-        max-width: 32px;
-        background: $main_color;
-        border-radius: 6px;
-        transition: height 0.3s ease;
-        position: relative;
-        cursor: pointer;
-
-        &:hover {
-          background: lighten($main_color, 10%);
-        }
-
-        .mini-bar-value {
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          background: #1a1a2e;
-          color: $main_color;
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 9px;
-          font-weight: 600;
-          white-space: nowrap;
-          opacity: 0;
-          pointer-events: none;
-          margin-bottom: 4px;
-          transition: opacity 0.2s ease;
-          z-index: 10;
-        }
-
-        &:hover .mini-bar-value {
-          opacity: 1;
-        }
-      }
-
-      .mini-bar-label {
-        font-size: 9px;
-        font-weight: 500;
-        color: #94a3b8;
-        text-transform: uppercase;
-      }
-    }
-  }
-
   // Tables Row
   .tables-row {
     display: grid;
@@ -789,6 +636,11 @@
     border-radius: 20px;
     border: 1px solid #e9edf2;
     overflow: hidden;
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+    }
 
     .table-header {
       display: flex;
@@ -831,7 +683,8 @@
     .sessions-list,
     .payments-list,
     .events-list,
-    .instructors-list {
+    .instructors-list,
+    .quick-stats-list {
       padding: 8px 0;
     }
 
@@ -1065,6 +918,33 @@
       }
     }
 
+    .quick-stats-list {
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        border-bottom: 1px solid #f8fafc;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .stat-label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #64748b;
+        }
+
+        .stat-value {
+          font-size: 16px;
+          font-weight: 700;
+          font-family: 'Manrope-Bold', sans-serif;
+          color: #0f172a;
+        }
+      }
+    }
+
     .quick-actions {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -1082,6 +962,7 @@
         border-radius: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
+        text-decoration: none;
 
         svg {
           color: $main_color;
@@ -1102,6 +983,162 @@
             color: $main_color;
           }
         }
+      }
+    }
+  }
+
+  // Revenue Trend Card (special styling)
+  .revenue-trend-card {
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+
+      h3 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 700;
+        font-family: 'Manrope-Bold', sans-serif;
+        color: #0f172a;
+        margin: 0;
+      }
+
+      .trend-value {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 20px;
+        background: rgba(34, 197, 94, 0.1);
+        color: #22c55e;
+
+        &.positive {
+          background: rgba(34, 197, 94, 0.1);
+          color: #22c55e;
+        }
+
+        &.negative {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+        }
+      }
+    }
+
+    .revenue-trend {
+      margin-bottom: 20px;
+      padding: 16px 0;
+
+      .trend-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 16px;
+        font-size: 11px;
+        font-weight: 500;
+        color: #94a3b8;
+
+        span {
+          flex: 1;
+          text-align: center;
+          font-size: 11px;
+          font-family: 'Manrope-Medium', sans-serif;
+        }
+      }
+    }
+
+    .revenue-summary {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px 16px;
+      border-top: 1px solid #f0f0f0;
+      background: #fafbfc;
+      border-radius: 12px;
+      gap: 16px;
+
+      .summary-item {
+        text-align: center;
+        flex: 1;
+
+        span {
+          display: block;
+          font-size: 11px;
+          font-weight: 500;
+          color: #94a3b8;
+          margin-bottom: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-family: 'Manrope-Medium', sans-serif;
+        }
+
+        strong {
+          font-size: 18px;
+          font-weight: 800;
+          font-family: 'Manrope-ExtraBold', sans-serif;
+          color: #1a1a2e;
+
+          &.positive {
+            color: #22c55e;
+          }
+
+          &.negative {
+            color: #ef4444;
+          }
+        }
+      }
+    }
+  }
+  // Mini Bar Chart Component
+  .mini-bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    height: 100%;
+    padding: 8px 0;
+
+    .mini-bar {
+      flex: 1;
+      height: var(--bar-height, 40px);
+      min-height: 4px;
+      background: $main_color;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+      position: relative;
+      cursor: pointer;
+
+      &:hover {
+        background: lighten($main_color, 10%);
+        transform: translateY(-2px);
+      }
+
+      .mini-bar-value {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1a1a2e;
+        color: $main_color;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 600;
+        font-family: 'Manrope-SemiBold', sans-serif;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        margin-bottom: 8px;
+        transition: opacity 0.2s ease;
+        z-index: 10;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      &:hover .mini-bar-value {
+        opacity: 1;
       }
     }
   }
@@ -1175,6 +1212,20 @@
     }
   }
 
+  // Empty State
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: #94a3b8;
+    font-size: 14px;
+    font-family: 'Manrope-Medium', sans-serif;
+
+    svg {
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+  }
+
   // Dashboard Footer
   .dashboard-footer {
     display: flex;
@@ -1236,6 +1287,12 @@
   }
 
   // Responsive
+  @media (max-width: 1200px) {
+    .kpi-grid {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+  }
+
   @media (max-width: 992px) {
     .dashboard-header {
       padding: 20px 24px;
@@ -1243,6 +1300,10 @@
       .header-content .greeting-section h1 {
         font-size: 22px;
       }
+    }
+
+    .quick-stats {
+      grid-template-columns: repeat(2, 1fr);
     }
   }
 
@@ -1256,9 +1317,35 @@
       }
     }
 
-    .quick-stats .stat-card.welcome-card .welcome-content {
-      flex-direction: column;
-      text-align: center;
+    .quick-stats {
+      grid-template-columns: 1fr;
+    }
+
+    .kpi-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .kpi-card {
+      padding: 16px;
+
+      .kpi-icon {
+        width: 48px;
+        height: 48px;
+
+        svg {
+          width: 22px;
+          height: 22px;
+        }
+      }
+
+      .kpi-info .kpi-value {
+        font-size: 22px;
+      }
+    }
+
+    .tables-row {
+      grid-template-columns: 1fr;
     }
 
     .table-card .quick-actions {
@@ -1272,19 +1359,6 @@
 
       .footer-stats {
         justify-content: center;
-      }
-    }
-
-    .revenue-trend-card {
-      .revenue-summary {
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .chart-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
       }
     }
   }
@@ -1332,12 +1406,6 @@
     .event-item,
     .instructor-item {
       padding: 10px 16px;
-    }
-
-    .revenue-trend-card {
-      .mini-bar-chart .mini-bar-wrapper .mini-bar {
-        max-width: 24px;
-      }
     }
   }
 }
