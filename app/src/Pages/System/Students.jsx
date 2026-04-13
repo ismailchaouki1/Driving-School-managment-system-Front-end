@@ -850,16 +850,24 @@ const Students = () => {
         responseType: 'blob',
       });
 
-      const url = window.URL.createObjectURL(
-        new Blob([response.data], { type: 'application/pdf' }),
-      );
-      window.open(url, '_blank');
-      window.URL.revokeObjectURL(url);
-
-      showToast(`Receipt for ${student.first_name} ${student.last_name} is ready`);
+      // Check if response is PDF
+      const contentType = response.headers['content-type'];
+      if (contentType === 'application/pdf') {
+        const url = window.URL.createObjectURL(
+          new Blob([response.data], { type: 'application/pdf' }),
+        );
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+        showToast(`Receipt for ${student.first_name} ${student.last_name} is ready`);
+      } else {
+        // Handle error response (might be JSON error)
+        const text = await response.data.text();
+        const error = JSON.parse(text);
+        showToast(error.message || 'Failed to generate receipt', 'error');
+      }
     } catch (error) {
       console.error('Print failed:', error);
-      showToast('Failed to generate receipt', 'error');
+      showToast(error.response?.data?.message || 'Failed to generate receipt', 'error');
     }
   };
 
