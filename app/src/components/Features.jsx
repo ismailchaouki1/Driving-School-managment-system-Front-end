@@ -10,6 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import gsap from 'gsap';
 import { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 export default function Features() {
   const container = useRef();
   const title = useRef();
@@ -93,7 +94,7 @@ export default function Features() {
           </div>
         ))}
       </div>
-      <button className="feature-getStarted  rounded-pill">
+      <Link to={'/login'} className="feature-getStarted  rounded-pill text-decoration-none">
         Get Started
         <span className="arrow-box">
           {/* FIRST ARROW */}
@@ -122,7 +123,7 @@ export default function Features() {
             <path d="M7 17L17 7M17 7H8M17 7V16" />
           </svg>
         </span>
-      </button>
+      </Link>
     </div>
   );
 }

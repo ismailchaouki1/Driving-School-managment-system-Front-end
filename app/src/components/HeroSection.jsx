@@ -2,6 +2,7 @@ import '../Styles/HeroSection.scss';
 import { gsap } from 'gsap';
 import { useRef, useEffect } from 'react';
 import { ScrollTrigger } from 'gsap/all';
+import { Link } from 'react-router-dom';
 gsap.registerPlugin(ScrollTrigger);
 export default function HeroSection() {
   const badge = useRef(null);
@@ -83,7 +84,7 @@ export default function HeroSection() {
         Organize your driving school’s operations from students to invoices through one powerful and
         unified interface.
       </p>
-      <button className="btn hero-button rounded-pill" ref={btnStart}>
+      <Link to={'/login'} className="btn hero-button rounded-pill" ref={btnStart}>
         Get Started Free Trial
         <span className="arrow-box">
           {/* FIRST ARROW */}
@@ -112,7 +113,7 @@ export default function HeroSection() {
             <path d="M7 17L17 7M17 7H8M17 7V16" />
           </svg>
         </span>
-      </button>
+      </Link>
       <div className="hero-image" ref={img}>
         <div className="image"></div>
       </div>

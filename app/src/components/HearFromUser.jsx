@@ -4,6 +4,7 @@ import { faPlay } from '@fortawesome/free-solid-svg-icons';
 import { useEffect, useRef, useState } from 'react';
 import Video from './video';
 import { gsap } from 'gsap';
+import { Link } from 'react-router-dom';
 
 export default function HearFromUser() {
   const [open, setOpen] = useState(false);
@@ -60,8 +61,8 @@ export default function HearFromUser() {
           "Clario makes managing my driving school so easy! I can focus on teaching students
           safely."
         </span>
-        <button className="getInTouch  rounded-pill">
-          Get in touch
+        <Link to={'/signup'} className="getInTouch  rounded-pill text-decoration-none">
+          Start Now !
           <span className="arrow-box">
             {/* FIRST ARROW */}
             <svg
@@ -89,7 +90,7 @@ export default function HearFromUser() {
               <path d="M7 17L17 7M17 7H8M17 7V16" />
             </svg>
           </span>
-        </button>
+        </Link>
       </div>
     </div>
   );

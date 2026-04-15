@@ -245,6 +245,49 @@ export default function PricingSection() {
 
     return () => ctx.revert(); // proper cleanup
   }, []);
+  const chatwayLoaded = useRef(false);
+
+  useEffect(() => {
+    // Check if Chatway script is already loaded
+    if (window.$chatway) {
+      chatwayLoaded.current = true;
+      return;
+    }
+
+    // Load Chatway script dynamically
+    const script = document.createElement('script');
+    script.src = 'https://cdn.chatway.app/widget.js'; // Replace with your actual Chatway script URL
+    script.async = true;
+    script.onload = () => {
+      chatwayLoaded.current = true;
+      console.log('Chatway widget loaded');
+    };
+    document.body.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
+  const openChatWindow = (e) => {
+    e.preventDefault();
+
+    // Check if Chatway widget is available and open it
+    if (chatwayLoaded.current && window.$chatway && window.$chatway.openChatwayWidget) {
+      window.$chatway.openChatwayWidget();
+    } else {
+      console.log('Chatway widget not yet loaded');
+      // Optional: Retry after a short delay
+      setTimeout(() => {
+        if (window.$chatway && window.$chatway.openChatwayWidget) {
+          window.$chatway.openChatwayWidget();
+        }
+      }, 500);
+    }
+  };
   return (
     <div className="pricing-section" ref={container}>
       <div className="pricing-badge" ref={pricing_badge}>
@@ -349,7 +392,7 @@ export default function PricingSection() {
             Join hundreds of driving schools managing students, instructors, and payments all in one
             place.
           </p>
-          <div className="pricing-trust__link">
+          <div className="pricing-trust__link" onClick={openChatWindow}>
             Talk to Sales <ArrowIcon />
           </div>
         </div>
