@@ -45,6 +45,9 @@
             font-weight: bold;
             color: #8cff2e;
         }
+        .expense-value {
+            color: #ef4444;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -60,11 +63,33 @@
             color: #0d0d0d;
             font-weight: bold;
         }
+        .expense-row {
+            background-color: #fef2f2;
+        }
         .footer {
             margin-top: 20px;
             text-align: center;
             font-size: 9px;
             color: #666;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        .badge-paid {
+            background: #10b981;
+            color: white;
+        }
+        .badge-pending {
+            background: #f59e0b;
+            color: white;
+        }
+        .badge-partial {
+            background: #3b82f6;
+            color: white;
         }
     </style>
 </head>
@@ -76,27 +101,35 @@
 
     <div class="summary">
         <div class="summary-item">
-            <div class="summary-value">{{ number_format($totalRevenue, 2) }} DH</div>
-            <div class="summary-label">Total Collected</div>
+            <div class="summary-value">{{ number_format($totalRevenue ?? 0, 2) }} DH</div>
+            <div class="summary-label">Total Revenue</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ number_format($totalPending, 2) }} DH</div>
+            <div class="summary-value expense-value">{{ number_format($totalExpenses ?? 0, 2) }} DH</div>
+            <div class="summary-label">Total Expenses</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ number_format(($totalRevenue ?? 0) - ($totalExpenses ?? 0), 2) }} DH</div>
+            <div class="summary-label">Net Revenue</div>
+        </div>
+        <div class="summary-item">
+            <div class="summary-value">{{ number_format($totalPending ?? 0, 2) }} DH</div>
             <div class="summary-label">Pending Balance</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ $paidCount }}</div>
+            <div class="summary-value">{{ $paidCount ?? 0 }}</div>
             <div class="summary-label">Paid</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ $partialCount }}</div>
+            <div class="summary-value">{{ $partialCount ?? 0 }}</div>
             <div class="summary-label">Partial</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ $pendingCount }}</div>
+            <div class="summary-value">{{ $pendingCount ?? 0 }}</div>
             <div class="summary-label">Pending</div>
         </div>
         <div class="summary-item">
-            <div class="summary-value">{{ $overdueCount }}</div>
+            <div class="summary-value">{{ $overdueCount ?? 0 }}</div>
             <div class="summary-label">Overdue</div>
         </div>
     </div>
@@ -105,8 +138,9 @@
         <thead>
             <tr>
                 <th>Reference</th>
-                <th>Student Name</th>
+                <th>Student/Expense</th>
                 <th>CIN</th>
+                <th>Type</th>
                 <th>Total (DH)</th>
                 <th>Paid (DH)</th>
                 <th>Remaining (DH)</th>
@@ -117,20 +151,28 @@
         </thead>
         <tbody>
             @forelse($payments as $payment)
-            <tr>
+            @php
+                $isExpense = in_array($payment->type, ['Maintenance', 'Incident']);
+            @endphp
+            <tr class="{{ $isExpense ? 'expense-row' : '' }}">
                 <td>{{ $payment->reference }}</td>
-                <td>{{ $payment->student_name }}</td>
-                <td>{{ $payment->student_cin }}</td>
+                <td>{{ $isExpense ? $payment->type : $payment->student_name }}</td>
+                <td>{{ $isExpense ? 'SYS-' . $payment->type : $payment->student_cin }}</td>
+                <td>{{ $payment->type }}</td>
                 <td style="text-align: right">{{ number_format($payment->amount_total, 2) }}</td>
                 <td style="text-align: right">{{ number_format($payment->amount_paid, 2) }}</td>
                 <td style="text-align: right">{{ number_format($payment->amount_remaining, 2) }}</td>
-                <td>{{ $payment->status }}</td>
+                <td>
+                    <span class="badge badge-{{ strtolower($payment->status) }}">
+                        {{ $payment->status }}
+                    </span>
+                </td>
                 <td>{{ $payment->method }}</td>
                 <td>{{ $payment->date }}</td>
             </tr>
             @empty
                 <tr>
-                    <td colspan="9" style="text-align: center">No payments found</td>
+                    <td colspan="10" style="text-align: center">No payments found</td>
                 </tr>
             @endforelse
         </tbody>
@@ -138,6 +180,7 @@
 
     <div class="footer">
         <p>Clario Driving School - Payment Management System</p>
+        <p>This report is system-generated. For any queries, please contact the administrator.</p>
     </div>
 </body>
 </html>

@@ -93,6 +93,14 @@
             background-color: #ef4444;
             color: white;
         }
+        .resolved {
+            color: #10b981;
+            font-weight: bold;
+        }
+        .open {
+            color: #ef4444;
+            font-weight: bold;
+        }
         .footer {
             margin-top: 30px;
             text-align: center;
@@ -239,14 +247,15 @@
 
         @if($vehicle->maintenance_history && count($vehicle->maintenance_history) > 0)
         <div class="section">
-            <div class="section-title">Maintenance History</div>
+            <div class="section-title">Maintenance History ({{ count($vehicle->maintenance_history) }} records)</div>
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>Type</th>
                         <th>Mileage</th>
-                        <th>Cost</th>
+                        <th>Cost (MAD)</th>
+                        <th>Notes</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -255,7 +264,36 @@
                         <td>{{ $record['date'] }}</td>
                         <td>{{ $record['type'] }}</td>
                         <td>{{ number_format($record['mileage']) }} km</td>
-                        <td>{{ number_format($record['cost'], 2) }} MAD</td>
+                        <td>{{ number_format($record['cost'], 2) }}</td>
+                        <td>{{ $record['notes'] ?? '—' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+
+        @if($vehicle->incidents && count($vehicle->incidents) > 0)
+        <div class="section">
+            <div class="section-title">Incident Reports ({{ count($vehicle->incidents) }} records)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Cost (MAD)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($vehicle->incidents as $incident)
+                    <tr>
+                        <td>{{ $incident['date'] }}</td>
+                        <td>{{ $incident['type'] }}</td>
+                        <td>{{ $incident['description'] }}</td>
+                        <td>{{ number_format($incident['cost'], 2) }}</td>
+                        <td><span class="{{ $incident['resolved'] ? 'resolved' : 'open' }}">{{ $incident['resolved'] ? 'Resolved' : 'Open' }}</span></td>
                     </tr>
                     @endforeach
                 </tbody>

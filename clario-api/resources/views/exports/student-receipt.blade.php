@@ -91,6 +91,13 @@
             display: flex;
             justify-content: space-between;
         }
+        .payment-schedule {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 5px;
+            font-size: 11px;
+        }
     </style>
 </head>
 <body>
@@ -157,6 +164,20 @@
                 </tr>
             </tbody>
         </table>
+
+        @php
+            $remaining = $student->total_price - $student->initial_payment;
+        @endphp
+
+        @if($remaining > 0)
+        <div class="payment-schedule">
+            <strong>Payment Schedule:</strong>
+            <p style="margin-top: 8px;">
+                The remaining balance of <strong>{{ number_format($remaining, 2) }} MAD</strong> is due within
+                3 months from the registration date ({{ $student->registration_date }}).
+            </p>
+        </div>
+        @endif
 
         <div class="signature">
             <div>

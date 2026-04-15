@@ -93,6 +93,10 @@
             margin-bottom: 4px;
         }
 
+        .kpi-value.expense {
+            color: #ef4444;
+        }
+
         .kpi-label {
             font-size: 10px;
             color: #666;
@@ -157,6 +161,10 @@
             background: #f9f9f9;
         }
 
+        .expense-row {
+            background-color: #fef2f2;
+        }
+
         /* Chart Containers */
         .charts-row {
             display: grid;
@@ -203,6 +211,10 @@
             border-radius: 4px 4px 0 0;
         }
 
+        .bar.expense-bar {
+            background: linear-gradient(180deg, #ef4444, #dc2626);
+        }
+
         .bar-label {
             font-size: 9px;
             color: #888;
@@ -213,39 +225,6 @@
             font-size: 9px;
             font-weight: bold;
             margin-bottom: 3px;
-        }
-
-        /* Donut Chart Placeholder */
-        .donut-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        .donut-legend {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 10px;
-        }
-
-        .legend-color {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .legend-percentage {
-            font-weight: bold;
-            color: #8cff2e;
         }
 
         /* Badges */
@@ -319,82 +298,100 @@
             <h2 class="section-title">Executive Summary</h2>
             <div class="kpi-grid">
                 <div class="kpi-card">
-                    <div class="kpi-value">{{ number_format($totalRevenue) }} MAD</div>
+                    <div class="kpi-value">{{ number_format($totalRevenue ?? 0) }} MAD</div>
                     <div class="kpi-label">Total Revenue</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-value">{{ $totalStudents }}</div>
+                    <div class="kpi-value expense">{{ number_format($totalExpenses ?? 0) }} MAD</div>
+                    <div class="kpi-label">Total Expenses</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ number_format(($totalRevenue ?? 0) - ($totalExpenses ?? 0)) }} MAD</div>
+                    <div class="kpi-label">Net Revenue</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-value">{{ $totalStudents ?? 0 }}</div>
                     <div class="kpi-label">Total Students</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-value">{{ $totalSessions }}</div>
+                    <div class="kpi-value">{{ $totalSessions ?? 0 }}</div>
                     <div class="kpi-label">Total Sessions</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-value">{{ number_format($completionRate, 1) }}%</div>
+                    <div class="kpi-value">{{ number_format($completionRate ?? 0, 1) }}%</div>
                     <div class="kpi-label">Completion Rate</div>
                 </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">{{ $instructors->count() }}</div>
-                    <div class="kpi-label">Instructors</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-value">{{ $vehicles->count() }}</div>
-                    <div class="kpi-label">Vehicles</div>
-                </div>
             </div>
         </div>
 
-        {{-- Quick Statistics --}}
+        {{-- Expense Breakdown --}}
         <div class="section">
-            <h2 class="section-title">Quick Statistics</h2>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value">{{ $students->where('payment_status', 'Complete')->count() }}</div>
-                    <div class="stat-label">Fully Paid</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ $students->where('payment_status', 'Partial')->count() }}</div>
-                    <div class="stat-label">Partial Payment</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ $students->where('payment_status', 'Pending')->count() }}</div>
-                    <div class="stat-label">Pending Payment</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ $sessions->where('status', 'Completed')->count() }}</div>
-                    <div class="stat-label">Completed Sessions</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ $sessions->where('status', 'Scheduled')->count() }}</div>
-                    <div class="stat-label">Scheduled Sessions</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">{{ $vehicles->where('status', 'Active')->count() }}</div>
-                    <div class="stat-label">Active Vehicles</div>
-                </div>
+            <h2 class="section-title">Expense Breakdown</h2>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Expense Type</th>
+                            <th class="text-right">Amount (MAD)</th>
+                            <th class="text-right">Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php
+                            $totalExpenses = $maintenanceExpenses + $incidentExpenses;
+                        @endphp
+                        <tr>
+                            <td>Maintenance</td>
+                            <td class="text-right">{{ number_format($maintenanceExpenses ?? 0) }}</td>
+                            <td class="text-right">{{ $totalExpenses > 0 ? number_format(($maintenanceExpenses / $totalExpenses) * 100, 1) : 0 }}%</td>
+                        </tr>
+                        <tr>
+                            <td>Incidents</td>
+                            <td class="text-right">{{ number_format($incidentExpenses ?? 0) }}</td>
+                            <td class="text-right">{{ $totalExpenses > 0 ? number_format(($incidentExpenses / $totalExpenses) * 100, 1) : 0 }}%</td>
+                        </tr>
+                        <tr style="background: #f0f0f0; font-weight: bold;">
+                            <td>Total Expenses</td>
+                            <td class="text-right">{{ number_format($totalExpenses) }}</td>
+                            <td class="text-right">100%</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        {{-- Revenue Chart --}}
+        {{-- Revenue & Expenses Chart --}}
         <div class="section">
-            <h2 class="section-title">Monthly Revenue Trend</h2>
+            <h2 class="section-title">Monthly Revenue vs Expenses</h2>
             <div class="chart-container">
                 <div class="bar-chart">
                     @php
-                        $maxRevenue = max($monthlyRevenue) ?: 1;
+                        $maxValue = max(max($monthlyRevenue ?? [0]), max($monthlyExpenses ?? [0]), 1);
                     @endphp
                     @foreach($months as $index => $month)
                         @php
-                            $revenue = $monthlyRevenue[$index];
-                            $height = ($revenue / $maxRevenue) * 120;
+                            $revenue = $monthlyRevenue[$index] ?? 0;
+                            $expense = $monthlyExpenses[$index] ?? 0;
+                            $revenueHeight = ($revenue / $maxValue) * 120;
+                            $expenseHeight = ($expense / $maxValue) * 120;
                         @endphp
                         <div class="bar-wrapper">
                             <div class="bar-value">{{ number_format($revenue / 1000, 1) }}k</div>
-                            <div class="bar" style="height: {{ $height }}px;"></div>
+                            <div class="bar" style="height: {{ $revenueHeight }}px;"></div>
+                            <div class="bar expense-bar" style="height: {{ $expenseHeight }}px;"></div>
                             <div class="bar-label">{{ $month }}</div>
                         </div>
                     @endforeach
+                </div>
+                <div style="display: flex; justify-content: center; gap: 20px; margin-top: 15px;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <div style="width: 12px; height: 12px; background: #8cff2e; border-radius: 2px;"></div>
+                        <span style="font-size: 9px;">Revenue</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <div style="width: 12px; height: 12px; background: #ef4444; border-radius: 2px;"></div>
+                        <span style="font-size: 9px;">Expenses</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -413,101 +410,28 @@
                     </thead>
                     <tbody>
                         @php
-                            $grandTotal = $registrationRevenue + $sessionRevenue + $examRevenue;
+                            $grandTotal = ($registrationRevenue ?? 0) + ($sessionRevenue ?? 0) + ($examRevenue ?? 0);
                         @endphp
                         <tr>
                             <td>Registration Fees</td>
-                            <td class="text-right">{{ number_format($registrationRevenue) }}</td>
-                            <td class="text-right">{{ $grandTotal > 0 ? number_format(($registrationRevenue / $grandTotal) * 100, 1) : 0 }}%</td>
+                            <td class="text-right">{{ number_format($registrationRevenue ?? 0) }}</td>
+                            <td class="text-right">{{ $grandTotal > 0 ? number_format((($registrationRevenue ?? 0) / $grandTotal) * 100, 1) : 0 }}%</td>
                         </tr>
                         <tr>
                             <td>Session Payments</td>
-                            <td class="text-right">{{ number_format($sessionRevenue) }}</td>
-                            <td class="text-right">{{ $grandTotal > 0 ? number_format(($sessionRevenue / $grandTotal) * 100, 1) : 0 }}%</td>
+                            <td class="text-right">{{ number_format($sessionRevenue ?? 0) }}</td>
+                            <td class="text-right">{{ $grandTotal > 0 ? number_format((($sessionRevenue ?? 0) / $grandTotal) * 100, 1) : 0 }}%</td>
                         </tr>
                         <tr>
                             <td>Exam Fees</td>
-                            <td class="text-right">{{ number_format($examRevenue) }}</td>
-                            <td class="text-right">{{ $grandTotal > 0 ? number_format(($examRevenue / $grandTotal) * 100, 1) : 0 }}%</td>
+                            <td class="text-right">{{ number_format($examRevenue ?? 0) }}</td>
+                            <td class="text-right">{{ $grandTotal > 0 ? number_format((($examRevenue ?? 0) / $grandTotal) * 100, 1) : 0 }}%</td>
                         </tr>
-                        <tr style="background: #f0f0f0;">
-                            <td class="font-bold">Total</td>
-                            <td class="text-right font-bold">{{ number_format($grandTotal) }}</td>
-                            <td class="text-right font-bold">100%</td>
+                        <tr style="background: #f0f0f0; font-weight: bold;">
+                            <td>Total Revenue</td>
+                            <td class="text-right">{{ number_format($grandTotal) }}</td>
+                            <td class="text-right">100%</td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        {{-- Payment Methods & Category Distribution --}}
-        <div class="charts-row">
-            <div class="chart-container">
-                <div class="chart-title">Payment Methods Distribution</div>
-                <div class="donut-container">
-                    <div class="donut-legend">
-                        @foreach($paymentMethods as $method => $stats)
-                            @php
-                                $total = array_sum(array_column($paymentMethods, 'amount'));
-                                $percentage = $total > 0 ? round(($stats['amount'] / $total) * 100, 1) : 0;
-                            @endphp
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: {{ $loop->index % 2 == 0 ? '#8cff2e' : '#3b82f6' }}"></div>
-                                <span>{{ $method }}</span>
-                                <span class="legend-percentage">{{ $percentage }}%</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-title">Category Distribution</div>
-                <div class="donut-container">
-                    <div class="donut-legend">
-                        @foreach($categoryDistribution as $category => $count)
-                            @php
-                                $percentage = $totalStudents > 0 ? round(($count / $totalStudents) * 100, 1) : 0;
-                            @endphp
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: {{ $loop->index % 2 == 0 ? '#8cff2e' : '#f59e0b' }}"></div>
-                                <span>Category {{ $category }}</span>
-                                <span class="legend-percentage">{{ $percentage }}%</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Top Instructors --}}
-        <div class="section">
-            <h2 class="section-title">Top Performing Instructors</h2>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Instructor</th>
-                            <th class="text-right">Sessions</th>
-                            <th class="text-right">Completion Rate</th>
-                            <th class="text-right">Revenue (MAD)</th>
-                            <th class="text-right">Rating</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($topInstructors as $instructor)
-                            <tr>
-                                <td>{{ $instructor['name'] }}</td>
-                                <td class="text-right">{{ $instructor['sessions'] }}</td>
-                                <td class="text-right">{{ number_format($instructor['completion_rate'], 1) }}%</td>
-                                <td class="text-right">{{ number_format($instructor['revenue']) }}</td>
-                                <td class="text-right">{{ number_format($instructor['rating'], 1) }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="text-center">No instructor data available</td>
-                            </tr>
-                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -521,7 +445,7 @@
                     <thead>
                         <tr>
                             <th>Date</th>
-                            <th>Student</th>
+                            <th>Student/Expense</th>
                             <th class="text-right">Amount (MAD)</th>
                             <th>Type</th>
                             <th>Status</th>
@@ -529,9 +453,12 @@
                     </thead>
                     <tbody>
                         @forelse($recentTransactions as $transaction)
-                            <tr>
+                            @php
+                                $isExpense = in_array($transaction->type, ['Maintenance', 'Incident']);
+                            @endphp
+                            <tr class="{{ $isExpense ? 'expense-row' : '' }}">
                                 <td>{{ $transaction->date }}</td>
-                                <td>{{ $transaction->student_name }}</td>
+                                <td>{{ $isExpense ? $transaction->type : $transaction->student_name }}</td>
                                 <td class="text-right">{{ number_format($transaction->amount_paid) }}</td>
                                 <td>{{ $transaction->type }}</td>
                                 <td><span class="badge badge-{{ strtolower($transaction->status) }}">{{ $transaction->status }}</span></td>
@@ -556,7 +483,9 @@
                             <th>Vehicle</th>
                             <th>Plate</th>
                             <th class="text-right">Sessions</th>
+                            <th class="text-right">Maintenance Records</th>
                             <th class="text-right">Utilization</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -565,11 +494,17 @@
                                 <td>{{ $vehicle['name'] }}</td>
                                 <td>{{ $vehicle['plate'] }}</td>
                                 <td class="text-right">{{ $vehicle['sessions'] }}</td>
+                                <td class="text-right">{{ $vehicle['maintenance_count'] ?? 0 }}</td>
                                 <td class="text-right">{{ $vehicle['utilization'] }}%</td>
+                                <td>
+                                    <span class="badge badge-{{ strtolower($vehicle['status'] ?? 'active') }}">
+                                        {{ $vehicle['status'] ?? 'Active' }}
+                                    </span>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center">No vehicle data available</td>
+                                <td colspan="6" class="text-center">No vehicle data available</td>
                             </tr>
                         @endforelse
                     </tbody>

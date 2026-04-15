@@ -56,6 +56,21 @@
             font-size: 10px;
             color: #666;
         }
+        .payment-status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .payment-paid {
+            background: #10b981;
+            color: white;
+        }
+        .payment-pending {
+            background: #f59e0b;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -117,10 +132,24 @@
             <span class="info-label">Status:</span>
             <span>{{ $session->status }}</span>
         </div>
+        <div class="info-row">
+            <span class="info-label">Payment Status:</span>
+            <span>
+                <span class="payment-status payment-{{ strtolower($session->payment_status) }}">
+                    {{ $session->payment_status }}
+                </span>
+            </span>
+        </div>
 
         <div class="total">
             Amount Paid: {{ number_format($session->price, 2) }} MAD
         </div>
+
+        @if($session->payment_status == 'Pending')
+        <div style="background: #fef2f2; padding: 10px; border-radius: 5px; margin-top: 15px; font-size: 11px; color: #ef4444;">
+            <strong>Note:</strong> This payment is pending. Please complete the payment at your earliest convenience.
+        </div>
+        @endif
 
         <div class="footer">
             <p>Thank you for choosing Clario Driving School!</p>

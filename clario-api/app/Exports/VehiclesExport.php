@@ -48,6 +48,8 @@ class VehiclesExport implements FromCollection, WithHeadings, WithMapping, Shoul
             'Registration Expiry',
             'Assigned Instructor',
             'Sessions Count',
+            'Maintenance Records Count',
+            'Incidents Count',
             'Purchase Price (MAD)',
             'Current Value (MAD)',
             'Depreciation (%)',
@@ -64,6 +66,9 @@ class VehiclesExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $currentValue = $vehicle->current_value ?? 0;
             $depreciation = round((1 - $currentValue / $vehicle->purchase_price) * 100);
         }
+
+        $maintenanceCount = is_array($vehicle->maintenance_history) ? count($vehicle->maintenance_history) : 0;
+        $incidentsCount = is_array($vehicle->incidents) ? count($vehicle->incidents) : 0;
 
         return [
             $vehicle->id,
@@ -87,6 +92,8 @@ class VehiclesExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $vehicle->registration_expiry ?? 'N/A',
             $vehicle->assigned_instructor ?? 'N/A',
             $vehicle->sessions_count,
+            $maintenanceCount,
+            $incidentsCount,
             $vehicle->purchase_price ? number_format($vehicle->purchase_price, 2) : 'N/A',
             $vehicle->current_value ? number_format($vehicle->current_value, 2) : 'N/A',
             $depreciation . '%',

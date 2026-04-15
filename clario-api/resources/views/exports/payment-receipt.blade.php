@@ -32,6 +32,12 @@
             font-weight: bold;
             margin: 20px 0;
         }
+        .title.expense {
+            color: #ef4444;
+        }
+        .title.revenue {
+            color: #10b981;
+        }
         .info-row {
             margin: 10px 0;
             padding: 5px;
@@ -50,11 +56,27 @@
             border-top: 2px solid #8cff2e;
             text-align: right;
         }
+        .amount.expense {
+            border-top-color: #ef4444;
+            color: #ef4444;
+        }
+        .amount.revenue {
+            border-top-color: #10b981;
+            color: #10b981;
+        }
         .footer {
             margin-top: 30px;
             text-align: center;
             font-size: 10px;
             color: #666;
+        }
+        .expense-note {
+            background: #fef2f2;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-size: 11px;
+            color: #ef4444;
         }
     </style>
 </head>
@@ -62,11 +84,15 @@
     <div class="receipt">
         <div class="header">
             <h1>Clario Driving School</h1>
-            <p>Official Payment Receipt</p>
+            <p>Official {{ in_array($payment->type, ['Maintenance', 'Incident']) ? 'Expense' : 'Payment' }} Receipt</p>
         </div>
 
-        <div class="title">
-            PAYMENT RECEIPT
+        @php
+            $isExpense = in_array($payment->type, ['Maintenance', 'Incident']);
+        @endphp
+
+        <div class="title {{ $isExpense ? 'expense' : 'revenue' }}">
+            {{ $isExpense ? 'EXPENSE RECEIPT' : 'PAYMENT RECEIPT' }}
         </div>
 
         <div class="info-row">
@@ -81,6 +107,8 @@
             <span class="info-label">Date:</span>
             <span>{{ $payment->date }}</span>
         </div>
+
+        @if(!$isExpense)
         <div class="info-row">
             <span class="info-label">Student Name:</span>
             <span>{{ $payment->student_name }}</span>
@@ -93,8 +121,21 @@
             <span class="info-label">Category:</span>
             <span>{{ $payment->category }}</span>
         </div>
+        @else
         <div class="info-row">
-            <span class="info-label">Payment Type:</span>
+            <span class="info-label">Expense Type:</span>
+            <span>{{ $payment->type }}</span>
+        </div>
+        @if($payment->vehicle_id)
+        <div class="info-row">
+            <span class="info-label">Vehicle ID:</span>
+            <span>{{ $payment->vehicle_id }}</span>
+        </div>
+        @endif
+        @endif
+
+        <div class="info-row">
+            <span class="info-label">Transaction Type:</span>
             <span>{{ $payment->type }}</span>
         </div>
         <div class="info-row">
@@ -102,10 +143,19 @@
             <span>{{ $payment->method }}</span>
         </div>
 
-        <div class="amount">
-            <strong>Amount Paid:</strong> {{ number_format($payment->amount_paid, 2) }} DH
+        @if($payment->notes)
+        <div class="info-row">
+            <span class="info-label">Description:</span>
+            <span>{{ $payment->notes }}</span>
+        </div>
+        @endif
+
+        <div class="amount {{ $isExpense ? 'expense' : 'revenue' }}">
+            <strong>{{ $isExpense ? 'Amount Paid:' : 'Amount Paid:' }}</strong>
+            {{ number_format($payment->amount_paid, 2) }} DH
         </div>
 
+        @if(!$isExpense)
         <div class="info-row">
             <span class="info-label">Total Amount:</span>
             <span>{{ number_format($payment->amount_total, 2) }} DH</span>
@@ -114,13 +164,22 @@
             <span class="info-label">Remaining Balance:</span>
             <span>{{ number_format($payment->amount_remaining, 2) }} DH</span>
         </div>
+        @endif
+
         <div class="info-row">
             <span class="info-label">Status:</span>
             <span>{{ $payment->status }}</span>
         </div>
 
+        @if($isExpense)
+        <div class="expense-note">
+            <strong>Note:</strong> This is an expense record for vehicle {{ $payment->type }}.
+            It has been deducted from the total revenue.
+        </div>
+        @endif
+
         <div class="footer">
-            <p>Thank you for your payment!</p>
+            <p>Thank you for {{ $isExpense ? 'your business' : 'choosing Clario Driving School' }}!</p>
             <p>Generated on: {{ now()->format('Y-m-d H:i:s') }}</p>
         </div>
     </div>

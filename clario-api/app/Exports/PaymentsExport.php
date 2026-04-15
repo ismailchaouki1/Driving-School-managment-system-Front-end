@@ -29,11 +29,12 @@ class PaymentsExport implements FromCollection, WithHeadings, WithMapping, Shoul
         return [
             'ID',
             'Reference',
-            'Student Name',
+            'Student/Expense Name',
             'Student CIN',
             'Student Phone',
             'Student Email',
             'Category',
+            'Payment Category',
             'Total Amount (DH)',
             'Paid Amount (DH)',
             'Remaining Amount (DH)',
@@ -46,12 +47,15 @@ class PaymentsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             'Notes',
             'Transaction Reference',
             'Receipt Number',
+            'Vehicle ID',
             'Created At',
         ];
     }
 
     public function map($payment): array
     {
+        $isExpense = in_array($payment->type, ['Maintenance', 'Incident']);
+
         return [
             $payment->id,
             $payment->reference,
@@ -60,6 +64,7 @@ class PaymentsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $payment->student_phone ?? 'N/A',
             $payment->student_email ?? 'N/A',
             $payment->category,
+            $payment->payment_category ?? 'N/A',
             number_format($payment->amount_total, 2),
             number_format($payment->amount_paid, 2),
             number_format($payment->amount_remaining, 2),
@@ -68,16 +73,18 @@ class PaymentsExport implements FromCollection, WithHeadings, WithMapping, Shoul
             $payment->type,
             $payment->date,
             $payment->due_date ?? 'N/A',
-            $payment->instructor ?? 'N/A',
+            $isExpense ? 'System' : ($payment->instructor ?? 'N/A'),
             $payment->notes ?? 'N/A',
             $payment->payment_reference ?? 'N/A',
             $payment->receipt_number ?? 'N/A',
+            $payment->vehicle_id ?? 'N/A',
             $payment->created_at->format('Y-m-d H:i:s'),
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
+        // Style for expense rows (optional - can be applied after export)
         return [
             1 => ['font' => ['bold' => true, 'size' => 12]],
         ];
