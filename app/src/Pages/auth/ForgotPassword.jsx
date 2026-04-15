@@ -4,7 +4,7 @@ import { Mail, ArrowLeft, CheckCircle, AlertCircle, Loader } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import gsap from 'gsap';
-import '../Styles/Login.scss';
+import '../../Styles/Login.scss';
 
 const API_URL = 'http://localhost:8000/api';
 

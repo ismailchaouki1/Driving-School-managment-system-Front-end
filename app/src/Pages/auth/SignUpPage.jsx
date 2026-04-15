@@ -2,10 +2,10 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
-import '../Styles/SignUpPage.scss';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
-import SignUp from '../components/SignUp';
+import '../../Styles/SignUpPage.scss';
+import Header from '../../components/Header';
+import Footer from '../../components/Footer';
+import SignUp from '../../components/SignUp';
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 

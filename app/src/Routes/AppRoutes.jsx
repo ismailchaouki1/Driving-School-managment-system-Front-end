@@ -4,8 +4,8 @@ import BlogPage from '../Pages/Blog';
 import BlogPost from '../Pages/BlogPost';
 import TermsPage from '../Pages/Terms';
 import PrivacyPage from '../Pages/Privacy';
-import LoginPage from '../Pages/LoginPage';
-import SignUpPage from '../Pages/SignUpPage';
+import LoginPage from '../Pages/auth/LoginPage';
+import SignUpPage from '../Pages/auth/SignUpPage';
 import MainLayout from '../Pages/System/MainLayout';
 import Dashboard from '../Pages/System/Dashboard';
 import Students from '../Pages/System/Students';
@@ -16,8 +16,8 @@ import Statistics from '../Pages/System/Statistics';
 import Calendar from '../Pages/System/Calendar';
 import { NotificationProvider } from '../contexts/NotificationContext';
 import Instructors from '../Pages/System/Instructors';
-import ForgotPassword from '../Pages/ForgotPassword';
-import ResetPassword from '../Pages/ResetPassword';
+import ForgotPassword from '../Pages/auth/ForgotPassword';
+import ResetPassword from '../Pages/auth/ResetPassword';
 export default function AppRoutes() {
   return (
     <BrowserRouter>

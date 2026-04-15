@@ -4,7 +4,7 @@ import { Eye, EyeOff, CheckCircle, AlertCircle, Loader, ArrowLeft } from 'lucide
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import gsap from 'gsap';
-import '../Styles/Login.scss';
+import '../../Styles/Login.scss';
 
 const API_URL = 'http://localhost:8000/api';
 
