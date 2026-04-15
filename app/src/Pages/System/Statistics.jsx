@@ -1,5 +1,5 @@
 // Pages/System/Statistics.jsx
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -31,6 +31,8 @@ import {
   PieChart,
   AreaChart,
   X,
+  Wrench,
+  AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -47,7 +49,7 @@ const DATE_RANGES = [
 ];
 
 const SESSION_TYPES = ['Driving', 'Code', 'Both'];
-const PAYMENT_CATEGORIES = ['Registration', 'Session', 'Exam'];
+const PAYMENT_CATEGORIES = ['Registration', 'Session', 'Exam', 'Maintenance', 'Incident'];
 
 /* ─────────────── Helper Functions ─────────────── */
 const formatCurrency = (value) => {
@@ -58,9 +60,18 @@ const formatCurrency = (value) => {
 
 /* ─────────────── Chart Components ─────────────── */
 
-// Revenue Trends Chart
-const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
-  const maxValue = Math.max(...datasets.flatMap((d) => d.data), 1);
+// Revenue Trends Chart (Updated for expenses)
+const RevenueTrendsChart = ({
+  datasets = [],
+  expensesDatasets = [],
+  labels = MONTHS,
+  height = 350,
+}) => {
+  const allData = [
+    ...datasets.flatMap((d) => d.data || []),
+    ...(expensesDatasets?.flatMap((d) => d.data || []) || []),
+  ];
+  const maxValue = Math.max(...allData, 1);
   const chartWidth = Math.max(labels.length * 80, 500);
   const padding = { top: 30, right: 30, bottom: 30, left: 50 };
   const chartHeight = height - padding.top - padding.bottom;
@@ -70,15 +81,17 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
   const getX = (index) => padding.left + index * stepX;
   const getY = (value) => padding.top + chartHeight - (value / maxValue) * chartHeight;
 
-  if (!datasets.length || !labels.length) {
+  const hasData = datasets.length && labels.length;
+
+  if (!hasData) {
     return (
       <div className="chart-card revenue-chart">
         <div className="chart-header">
           <h3>
-            <AreaChart size={18} /> Revenue Trends
+            <AreaChart size={18} /> Financial Trends
           </h3>
         </div>
-        <div className="empty-state">No revenue data available for selected filters</div>
+        <div className="empty-state">No financial data available for selected filters</div>
       </div>
     );
   }
@@ -87,19 +100,34 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
     <div className="chart-card revenue-chart">
       <div className="chart-header">
         <h3>
-          <AreaChart size={18} /> Revenue Trends
+          <AreaChart size={18} /> Financial Trends
         </h3>
         <div className="chart-stats">
-          <div className="stat-badge">
+          <div className="stat-badge revenue">
             <TrendingUp size={14} />
             <span>
-              Total:{' '}
+              Revenue:{' '}
               {formatCurrency(
-                datasets.reduce((sum, d) => sum + d.data.reduce((a, b) => a + b, 0), 0),
+                datasets.reduce((sum, d) => sum + (d.data?.reduce((a, b) => a + b, 0) || 0), 0),
               )}{' '}
               MAD
             </span>
           </div>
+          {expensesDatasets && expensesDatasets.length > 0 && (
+            <div className="stat-badge expense">
+              <TrendingDown size={14} />
+              <span>
+                Expenses:{' '}
+                {formatCurrency(
+                  expensesDatasets.reduce(
+                    (sum, d) => sum + (d.data?.reduce((a, b) => a + b, 0) || 0),
+                    0,
+                  ),
+                )}{' '}
+                MAD
+              </span>
+            </div>
+          )}
         </div>
       </div>
       <div className="revenue-chart-container" style={{ height: `${height}px` }}>
@@ -110,11 +138,32 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
         >
           <defs>
             {datasets.map((dataset, idx) => (
-              <linearGradient key={idx} id={`gradient-${idx}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient
+                key={`revenue-grad-${idx}`}
+                id={`gradient-revenue-${idx}`}
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
                 <stop offset="0%" stopColor={dataset.color} stopOpacity="0.4" />
                 <stop offset="100%" stopColor={dataset.color} stopOpacity="0.02" />
               </linearGradient>
             ))}
+            {expensesDatasets &&
+              expensesDatasets.map((dataset, idx) => (
+                <linearGradient
+                  key={`expense-grad-${idx}`}
+                  id={`gradient-expense-${idx}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor={dataset.color} stopOpacity="0.4" />
+                  <stop offset="100%" stopColor={dataset.color} stopOpacity="0.02" />
+                </linearGradient>
+              ))}
           </defs>
 
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
@@ -138,15 +187,18 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
             );
           })}
 
+          {/* Revenue Datasets */}
           {datasets.map((dataset, idx) => {
-            const points = dataset.data.map((value, i) => `${getX(i)},${getY(value)}`).join(' ');
+            const points = (dataset.data || [])
+              .map((value, i) => `${getX(i)},${getY(value)}`)
+              .join(' ');
             const areaPoints = `${points} ${getX(labels.length - 1)},${padding.top + chartHeight} ${getX(0)},${padding.top + chartHeight}`;
 
             return (
-              <g key={idx}>
+              <g key={`revenue-${idx}`}>
                 <polygon
                   points={areaPoints}
-                  fill={`url(#gradient-${idx})`}
+                  fill={`url(#gradient-revenue-${idx})`}
                   className="chart-area"
                 />
                 <polyline
@@ -156,7 +208,7 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
                   strokeWidth="2.5"
                   className="chart-line"
                 />
-                {dataset.data.map((value, i) => (
+                {(dataset.data || []).map((value, i) => (
                   <g
                     key={i}
                     className="chart-dot"
@@ -188,6 +240,42 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
             );
           })}
 
+          {/* Expenses Datasets */}
+          {expensesDatasets &&
+            expensesDatasets.map((dataset, idx) => {
+              const points = (dataset.data || [])
+                .map((value, i) => `${getX(i)},${getY(value)}`)
+                .join(' ');
+              const areaPoints = `${points} ${getX(labels.length - 1)},${padding.top + chartHeight} ${getX(0)},${padding.top + chartHeight}`;
+
+              return (
+                <g key={`expense-${idx}`}>
+                  <polygon
+                    points={areaPoints}
+                    fill={`url(#gradient-expense-${idx})`}
+                    className="chart-area expense-area"
+                  />
+                  <polyline
+                    points={points}
+                    fill="none"
+                    stroke={dataset.color}
+                    strokeWidth="2"
+                    strokeDasharray="5,5"
+                    className="chart-line expense-line"
+                  />
+                  {(dataset.data || []).map((value, i) => (
+                    <g
+                      key={i}
+                      className="chart-dot expense-dot"
+                      transform={`translate(${getX(i)}, ${getY(value)})`}
+                    >
+                      <circle r="3" fill={dataset.color} stroke="#fff" strokeWidth="2" />
+                    </g>
+                  ))}
+                </g>
+              );
+            })}
+
           {labels.map((label, i) => (
             <text
               key={i}
@@ -209,17 +297,27 @@ const RevenueTrendsChart = ({ datasets, labels, height = 350 }) => {
             <span className="legend-color" style={{ backgroundColor: dataset.color }}></span>
             <span>{dataset.name}</span>
             <span className="legend-value">
-              {formatCurrency(dataset.data.reduce((a, b) => a + b, 0))} MAD
+              {formatCurrency((dataset.data || []).reduce((a, b) => a + b, 0))} MAD
             </span>
           </div>
         ))}
+        {expensesDatasets &&
+          expensesDatasets.map((dataset, idx) => (
+            <div key={`expense-${idx}`} className="legend-item expense-legend">
+              <span className="legend-color" style={{ backgroundColor: dataset.color }}></span>
+              <span>{dataset.name}</span>
+              <span className="legend-value">
+                {formatCurrency((dataset.data || []).reduce((a, b) => a + b, 0))} MAD
+              </span>
+            </div>
+          ))}
       </div>
     </div>
   );
 };
 
 // Student Registrations Chart
-const StudentRegistrationsChart = ({ data, labels, height = 300 }) => {
+const StudentRegistrationsChart = ({ data = [], labels = MONTHS, height = 300 }) => {
   const maxValue = Math.max(...data, 1);
   const chartWidth = Math.max(labels.length * 70, 400);
   const barWidth = Math.min(50, ((chartWidth - 80) / labels.length) * 0.6);
@@ -344,8 +442,8 @@ const StudentRegistrationsChart = ({ data, labels, height = 300 }) => {
 };
 
 // Session Analytics Chart
-const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
-  const maxValue = Math.max(...datasets.flatMap((d) => d.data), 1);
+const SessionAnalyticsChart = ({ datasets = [], labels = MONTHS, height = 300 }) => {
+  const maxValue = Math.max(...datasets.flatMap((d) => d.data || []), 1);
   const chartWidth = Math.max(labels.length * 80, 500);
   const padding = { top: 30, right: 30, bottom: 30, left: 50 };
   const chartHeight = height - padding.top - padding.bottom;
@@ -370,7 +468,11 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
     return path;
   };
 
-  if (!datasets.length || !labels.length || datasets.every((d) => d.data.every((v) => v === 0))) {
+  if (
+    !datasets.length ||
+    !labels.length ||
+    datasets.every((d) => (d.data || []).every((v) => v === 0))
+  ) {
     return (
       <div className="chart-card session-chart">
         <div className="chart-header">
@@ -384,9 +486,9 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
   }
 
   const totalScheduled =
-    datasets.find((d) => d.name === 'Scheduled')?.data.reduce((a, b) => a + b, 0) || 0;
+    datasets.find((d) => d.name === 'Scheduled')?.data?.reduce((a, b) => a + b, 0) || 0;
   const totalCompleted =
-    datasets.find((d) => d.name === 'Completed')?.data.reduce((a, b) => a + b, 0) || 0;
+    datasets.find((d) => d.name === 'Completed')?.data?.reduce((a, b) => a + b, 0) || 0;
   const completionRate =
     totalScheduled > 0 ? Math.round((totalCompleted / totalScheduled) * 100) : 0;
 
@@ -440,7 +542,7 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
           })}
 
           {datasets.map((dataset, idx) => {
-            const points = dataset.data.map((value, i) => ({ x: getX(i), y: getY(value) }));
+            const points = (dataset.data || []).map((value, i) => ({ x: getX(i), y: getY(value) }));
             const smoothPath = getSmoothPath(points);
 
             return (
@@ -452,7 +554,7 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
                   strokeWidth="2.5"
                   className="chart-line"
                 />
-                {dataset.data.map((value, i) => (
+                {(dataset.data || []).map((value, i) => (
                   <g
                     key={i}
                     className="chart-dot"
@@ -504,7 +606,9 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
           <div key={idx} className="legend-item">
             <span className="legend-color" style={{ backgroundColor: dataset.color }}></span>
             <span>{dataset.name}</span>
-            <span className="legend-value">{dataset.data.reduce((a, b) => a + b, 0)} total</span>
+            <span className="legend-value">
+              {(dataset.data || []).reduce((a, b) => a + b, 0)} total
+            </span>
           </div>
         ))}
       </div>
@@ -513,9 +617,8 @@ const SessionAnalyticsChart = ({ datasets, labels, height = 300 }) => {
 };
 
 // Donut Chart Component
-const DonutChartComponent = ({ data, title, size = 200 }) => {
+const DonutChartComponent = ({ data = [], title, size = 200 }) => {
   let cumulativeAngle = 0;
-
   const filteredData = data.filter((item) => item.value > 0);
 
   if (!filteredData || filteredData.length === 0) {
@@ -608,7 +711,7 @@ const DonutChartComponent = ({ data, title, size = 200 }) => {
   );
 };
 
-// KPI Card Component
+// KPI Card Component (Updated for expenses)
 const KpiCard = ({
   icon: IconComponent,
   label,
@@ -617,15 +720,17 @@ const KpiCard = ({
   changeType,
   prefix = '',
   suffix = '',
+  isExpense = false,
 }) => {
   const Icon = IconComponent;
+  const displayValue = typeof value === 'number' ? value.toLocaleString() : value || 0;
   return (
-    <div className="kpi-card">
+    <div className={`kpi-card ${isExpense ? 'expense-kpi' : ''}`}>
       <div className="kpi-icon">{Icon && <Icon size={24} />}</div>
       <div className="kpi-info">
-        <div className="kpi-value">
+        <div className={`kpi-value ${isExpense ? 'expense-value' : ''}`}>
           {prefix}
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {displayValue}
           {suffix}
         </div>
         <div className="kpi-label">{label}</div>
@@ -682,6 +787,8 @@ const Statistics = () => {
   const [stats, setStats] = useState({
     kpis: {
       total_revenue: 0,
+      total_expenses: 0,
+      net_revenue: 0,
       total_students: 0,
       total_sessions: 0,
       completion_rate: 0,
@@ -698,6 +805,7 @@ const Statistics = () => {
       top_category: 'B',
     },
     revenue_data: { labels: MONTHS, datasets: [] },
+    expenses_data: { labels: MONTHS, datasets: [] },
     registrations_data: { labels: MONTHS, data: [] },
     session_data: { labels: MONTHS, scheduled: [], completed: [], cancelled: [], no_show: [] },
     payment_methods: [],
@@ -740,20 +848,22 @@ const Statistics = () => {
     fetchStatistics();
   }, [fetchStatistics]);
 
-  // Prepare filtered data for charts
-  const revenueData = useMemo(() => stats.revenue_data, [stats.revenue_data]);
-  const registrationsData = useMemo(() => stats.registrations_data, [stats.registrations_data]);
-
-  const sessionData = useMemo(
-    () => ({
-      labels: stats.session_data.labels,
-      scheduled: stats.session_data.scheduled,
-      completed: stats.session_data.completed,
-      cancelled: stats.session_data.cancelled,
-      no_show: stats.session_data.no_show,
-    }),
-    [stats.session_data],
-  );
+  // Prepare filtered data for charts with safe defaults
+  const revenueData = stats?.revenue_data || { labels: MONTHS, datasets: [] };
+  const expensesData = stats?.expenses_data || { labels: MONTHS, datasets: [] };
+  const registrationsData = stats?.registrations_data || { labels: MONTHS, data: [] };
+  const sessionData = stats?.session_data || {
+    labels: MONTHS,
+    scheduled: [],
+    completed: [],
+    cancelled: [],
+    no_show: [],
+  };
+  const paymentMethods = stats?.payment_methods || [];
+  const categoryDistribution = stats?.category_distribution || [];
+  const topInstructors = stats?.top_instructors || [];
+  const recentTransactions = stats?.recent_transactions || [];
+  const vehicleUtilization = stats?.vehicle_utilization || [];
 
   const handleRefresh = async () => {
     await fetchStatistics();
@@ -969,6 +1079,8 @@ const Statistics = () => {
                 <option value="Registration">Registration</option>
                 <option value="Session">Session</option>
                 <option value="Exam">Exam</option>
+                <option value="Maintenance">Maintenance</option>
+                <option value="Incident">Incident</option>
               </select>
             </div>
             <div className="filter-actions">
@@ -980,7 +1092,7 @@ const Statistics = () => {
         )}
       </div>
 
-      {/* KPI Grid */}
+      {/* KPI Grid with Expenses */}
       <div className="kpi-grid">
         <KpiCard
           icon={DollarSign}
@@ -989,6 +1101,23 @@ const Statistics = () => {
           prefix="MAD "
           change={stats.kpis.revenue_change}
           changeType={stats.kpis.revenue_change >= 0 ? 'positive' : 'negative'}
+        />
+        <KpiCard
+          icon={Wrench}
+          label="Total Expenses"
+          value={stats.kpis.total_expenses || 0}
+          prefix="MAD "
+          change={12.5}
+          changeType="positive"
+          isExpense={true}
+        />
+        <KpiCard
+          icon={TrendingUp}
+          label="Net Revenue"
+          value={stats.kpis.net_revenue || 0}
+          prefix="MAD "
+          change={stats.kpis.net_revenue >= 0 ? 8.2 : -5.3}
+          changeType={stats.kpis.net_revenue >= 0 ? 'positive' : 'negative'}
         />
         <KpiCard
           icon={Users}
@@ -1073,13 +1202,14 @@ const Statistics = () => {
       {/* Main Charts Row */}
       <div className="charts-row">
         <RevenueTrendsChart
-          datasets={revenueData.datasets}
-          labels={revenueData.labels}
+          datasets={revenueData.datasets || []}
+          expensesDatasets={expensesData.datasets || []}
+          labels={revenueData.labels || MONTHS}
           height={350}
         />
         <StudentRegistrationsChart
-          data={registrationsData.data}
-          labels={registrationsData.labels}
+          data={registrationsData.data || []}
+          labels={registrationsData.labels || MONTHS}
           height={300}
         />
       </div>
@@ -1088,24 +1218,20 @@ const Statistics = () => {
       <div className="charts-row">
         <SessionAnalyticsChart
           datasets={[
-            { name: 'Scheduled', data: sessionData.scheduled, color: '#3b82f6' },
-            { name: 'Completed', data: sessionData.completed, color: '#10b981' },
-            { name: 'Cancelled', data: sessionData.cancelled, color: '#ef4444' },
-            { name: 'No Show', data: sessionData.no_show, color: '#f59e0b' },
+            { name: 'Scheduled', data: sessionData.scheduled || [], color: '#3b82f6' },
+            { name: 'Completed', data: sessionData.completed || [], color: '#10b981' },
+            { name: 'Cancelled', data: sessionData.cancelled || [], color: '#ef4444' },
+            { name: 'No Show', data: sessionData.no_show || [], color: '#f59e0b' },
           ]}
-          labels={sessionData.labels}
+          labels={sessionData.labels || MONTHS}
           height={300}
         />
         <DonutChartComponent
-          data={stats.payment_methods}
+          data={paymentMethods}
           title="Payment Methods Distribution"
           size={200}
         />
-        <DonutChartComponent
-          data={stats.category_distribution}
-          title="Category Distribution"
-          size={200}
-        />
+        <DonutChartComponent data={categoryDistribution} title="Category Distribution" size={200} />
       </div>
 
       {/* Top Instructors & Recent Transactions */}
@@ -1131,43 +1257,43 @@ const Statistics = () => {
                 </tr>
               </thead>
               <tbody>
-                {stats.top_instructors.length === 0 ? (
+                {topInstructors.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="empty-state">
                       No instructor data available for selected filters
                     </td>
                   </tr>
                 ) : (
-                  stats.top_instructors.map((instructor) => (
+                  topInstructors.map((instructor) => (
                     <tr key={instructor.id}>
                       <td>
                         <div className="instructor-cell">
                           <div className="instructor-avatar">
                             {instructor.name
-                              .split(' ')
+                              ?.split(' ')
                               .map((n) => n[0])
-                              .join('')}
+                              .join('') || '??'}
                           </div>
                           <span>{instructor.name}</span>
                         </div>
                       </td>
-                      <td>{instructor.sessions}</td>
+                      <td>{instructor.sessions || 0}</td>
                       <td>
                         <div className="completion-cell">
                           <div className="completion-bar">
                             <div
                               className="completion-fill"
-                              style={{ width: `${instructor.completion_rate}%` }}
+                              style={{ width: `${instructor.completion_rate || 0}%` }}
                             />
                           </div>
-                          <span>{instructor.completion_rate}%</span>
+                          <span>{instructor.completion_rate || 0}%</span>
                         </div>
                       </td>
                       <td>{(instructor.revenue || 0).toLocaleString()} MAD</td>
                       <td>
                         <div className="rating">
                           <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                          <span>{instructor.rating}</span>
+                          <span>{instructor.rating || 0}</span>
                         </div>
                       </td>
                     </tr>
@@ -1192,37 +1318,44 @@ const Statistics = () => {
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Student</th>
+                  <th>Student/Expense</th>
                   <th>Amount</th>
                   <th>Type</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {stats.recent_transactions.length === 0 ? (
+                {recentTransactions.length === 0 ? (
                   <tr>
                     <td colSpan="5" className="empty-state">
                       No transactions available for selected filters
                     </td>
                   </tr>
                 ) : (
-                  stats.recent_transactions.map((transaction) => (
-                    <tr key={transaction.id}>
-                      <td>{transaction.date}</td>
-                      <td>{transaction.student}</td>
-                      <td className="amount">{(transaction.amount || 0).toLocaleString()} MAD</td>
-                      <td>
-                        <span className={`type-badge ${transaction.type?.toLowerCase()}`}>
-                          {transaction.type}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${transaction.status?.toLowerCase()}`}>
-                          {transaction.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  recentTransactions.map((transaction) => {
+                    const isExpense =
+                      transaction.type === 'Maintenance' || transaction.type === 'Incident';
+                    return (
+                      <tr key={transaction.id} className={isExpense ? 'expense-row' : ''}>
+                        <td>{transaction.date}</td>
+                        <td>{isExpense ? transaction.type : transaction.student}</td>
+                        <td className={`amount ${isExpense ? 'expense-amount' : 'revenue-amount'}`}>
+                          {isExpense ? '-' : ''}
+                          {(transaction.amount || 0).toLocaleString()} MAD
+                        </td>
+                        <td>
+                          <span className={`type-badge ${transaction.type?.toLowerCase()}`}>
+                            {transaction.type}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge ${transaction.status?.toLowerCase()}`}>
+                            {transaction.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1252,14 +1385,14 @@ const Statistics = () => {
               </tr>
             </thead>
             <tbody>
-              {stats.vehicle_utilization.length === 0 ? (
+              {vehicleUtilization.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="empty-state">
                     No vehicle data available
                   </td>
                 </tr>
               ) : (
-                stats.vehicle_utilization.map((vehicle) => (
+                vehicleUtilization.map((vehicle) => (
                   <tr key={vehicle.id}>
                     <td>
                       <div className="vehicle-cell">
@@ -1268,25 +1401,25 @@ const Statistics = () => {
                       </div>
                     </td>
                     <td className="plate">{vehicle.plate}</td>
-                    <td>{vehicle.sessions}</td>
+                    <td>{vehicle.sessions || 0}</td>
                     <td>
                       <div className="utilization-cell">
                         <div className="utilization-bar">
                           <div
                             className="utilization-fill"
-                            style={{ width: `${vehicle.utilization}%` }}
+                            style={{ width: `${vehicle.utilization || 0}%` }}
                           />
                         </div>
-                        <span>{vehicle.utilization}%</span>
+                        <span>{vehicle.utilization || 0}%</span>
                       </div>
                     </td>
                     <td>
                       <span
-                        className={`status-badge ${vehicle.utilization > 70 ? 'active' : vehicle.utilization > 40 ? 'partial' : 'low'}`}
+                        className={`status-badge ${(vehicle.utilization || 0) > 70 ? 'active' : (vehicle.utilization || 0) > 40 ? 'partial' : 'low'}`}
                       >
-                        {vehicle.utilization > 70
+                        {(vehicle.utilization || 0) > 70
                           ? 'High Usage'
-                          : vehicle.utilization > 40
+                          : (vehicle.utilization || 0) > 40
                             ? 'Medium Usage'
                             : 'Low Usage'}
                       </span>

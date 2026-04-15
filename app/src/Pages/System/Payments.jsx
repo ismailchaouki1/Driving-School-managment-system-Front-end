@@ -44,6 +44,7 @@ import {
   MapPin,
   Loader,
   Car,
+  Wrench,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -52,7 +53,7 @@ import '../../Styles/System/Payments.scss';
 /* ─────────────── Constants ─────────────── */
 const PAYMENT_STATUSES = ['Paid', 'Partial', 'Pending', 'Overdue'];
 const PAYMENT_METHODS = ['Cash', 'Bank Transfer', 'Card', 'Cheque', 'Online'];
-const PAYMENT_TYPES = ['Registration', 'Session', 'Exam', 'Other'];
+const PAYMENT_TYPES = ['Registration', 'Session', 'Exam', 'Maintenance', 'Incident', 'Other'];
 const CATEGORIES = ['B', 'A', 'A1', 'C', 'D', 'BE'];
 
 const EMPTY_FORM = {
@@ -126,8 +127,11 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
       ? Math.ceil((new Date() - new Date(payment.due_date)) / 86400000)
       : null;
 
+  // Check if this is an expense (Maintenance or Incident)
+  const isExpense = payment.type === 'Maintenance' || payment.type === 'Incident';
+
   return (
-    <div className="payment-card">
+    <div className={`payment-card ${isExpense ? 'expense-card' : ''}`}>
       <div className="payment-card-header">
         <div className="payment-ref">
           <ReceiptText size={16} />
@@ -154,20 +158,37 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
 
       <div className="payment-card-body">
         <div className="payment-student">
-          <div className="student-avatar">
-            {payment.student_name
-              ? payment.student_name
-                  .split(' ')
-                  .map((w) => w[0])
-                  .join('')
-                  .slice(0, 2)
-                  .toUpperCase()
-              : '??'}
+          <div
+            className="student-avatar"
+            style={isExpense ? { background: '#ef444415', color: '#ef4444' } : {}}
+          >
+            {isExpense ? (
+              payment.type === 'Maintenance' ? (
+                <Wrench size={20} />
+              ) : (
+                <AlertTriangle size={20} />
+              )
+            ) : payment.student_name ? (
+              payment.student_name
+                .split(' ')
+                .map((w) => w[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()
+            ) : (
+              '??'
+            )}
           </div>
           <div className="student-info">
-            <h4>{payment.student_name || 'N/A'}</h4>
-            <p>CIN: {payment.student_cin || 'N/A'}</p>
-            <span className="category-badge">Cat. {payment.category || 'N/A'}</span>
+            <h4>{isExpense ? payment.type : payment.student_name || 'N/A'}</h4>
+            {!isExpense && <p>CIN: {payment.student_cin || 'N/A'}</p>}
+            <span className="category-badge">
+              {isExpense
+                ? payment.type === 'Maintenance'
+                  ? 'Vehicle Expense'
+                  : 'Incident Cost'
+                : `Cat. ${payment.category || 'N/A'}`}
+            </span>
           </div>
         </div>
 
@@ -178,7 +199,9 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
           </div>
           <div className="amount-item paid">
             <span>Paid</span>
-            <strong className="text-success">{amountPaid.toLocaleString()} DH</strong>
+            <strong className={isExpense ? 'text-danger' : 'text-success'}>
+              {amountPaid.toLocaleString()} DH
+            </strong>
           </div>
           <div className="amount-item remaining">
             <span>Remaining</span>
@@ -190,7 +213,10 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
 
         <div className="payment-progress">
           <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${percentPaid}%` }} />
+            <div
+              className={`progress-fill ${isExpense ? 'expense-fill' : ''}`}
+              style={{ width: `${percentPaid}%` }}
+            />
           </div>
           <div className="progress-percent">{percentPaid}% paid</div>
         </div>
@@ -213,10 +239,16 @@ const PaymentCard = ({ payment, onView, onEdit, onDelete, onPrintReceipt }) => {
           )}
         </div>
 
-        {payment.instructor && (
+        {payment.instructor && !isExpense && (
           <div className="payment-instructor">
             <User size={12} />
             <span>{payment.instructor}</span>
+          </div>
+        )}
+        {payment.notes && (
+          <div className="payment-notes">
+            <FileText size={12} />
+            <span className="notes-text">{payment.notes}</span>
           </div>
         )}
       </div>
@@ -267,8 +299,14 @@ const PaymentModal = ({ payment, onClose, onSave, isSaving }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.student_name?.trim()) e.student_name = 'Student name is required';
-    if (!form.student_cin?.trim()) e.student_cin = 'CIN is required';
+    // For expenses, student name is optional
+    const isExpense = form.type === 'Maintenance' || form.type === 'Incident';
+
+    if (!isExpense) {
+      if (!form.student_name?.trim()) e.student_name = 'Student name is required';
+      if (!form.student_cin?.trim()) e.student_cin = 'CIN is required';
+    }
+
     if (!form.amount_total || parseFloat(form.amount_total) <= 0)
       e.amount_total = 'Enter a valid total amount';
     if (parseFloat(form.amount_paid) > parseFloat(form.amount_total))
@@ -288,6 +326,8 @@ const PaymentModal = ({ payment, onClose, onSave, isSaving }) => {
           Math.round((parseFloat(form.amount_paid || 0) / parseFloat(form.amount_total)) * 100),
         )
       : 0;
+
+  const isExpense = form.type === 'Maintenance' || form.type === 'Incident';
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -340,73 +380,93 @@ const PaymentModal = ({ payment, onClose, onSave, isSaving }) => {
 
           <div className="form-section">
             <h4 className="section-title">
-              <User size={14} /> Student Information
+              {isExpense ? <Wrench size={14} /> : <User size={14} />}
+              {isExpense ? 'Expense Information' : 'Student Information'}
             </h4>
-            <div className="form-row">
-              <div className="form-field">
-                <label>Student Name *</label>
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={form.student_name}
-                  onChange={(e) => set('student_name', e.target.value)}
-                  className={errors.student_name ? 'error' : ''}
-                />
-                {errors.student_name && <span className="error-msg">{errors.student_name}</span>}
+
+            {!isExpense ? (
+              <>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Student Name *</label>
+                    <input
+                      type="text"
+                      placeholder="Full name"
+                      value={form.student_name}
+                      onChange={(e) => set('student_name', e.target.value)}
+                      className={errors.student_name ? 'error' : ''}
+                    />
+                    {errors.student_name && (
+                      <span className="error-msg">{errors.student_name}</span>
+                    )}
+                  </div>
+                  <div className="form-field">
+                    <label>CIN *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. AB123456"
+                      value={form.student_cin}
+                      onChange={(e) => set('student_cin', e.target.value)}
+                      className={errors.student_cin ? 'error' : ''}
+                    />
+                    {errors.student_cin && <span className="error-msg">{errors.student_cin}</span>}
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Phone Number</label>
+                    <input
+                      type="tel"
+                      placeholder="Phone number"
+                      value={form.student_phone}
+                      onChange={(e) => set('student_phone', e.target.value)}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={form.student_email}
+                      onChange={(e) => set('student_email', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-field">
+                    <label>Category</label>
+                    <select value={form.category} onChange={(e) => set('category', e.target.value)}>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          Category {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field">
+                    <label>Instructor</label>
+                    <input
+                      type="text"
+                      placeholder="Instructor name"
+                      value={form.instructor}
+                      onChange={(e) => set('instructor', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="form-row">
+                <div className="form-field full-width">
+                  <label>Description / Notes</label>
+                  <textarea
+                    placeholder={`Enter ${form.type.toLowerCase()} description...`}
+                    value={form.notes}
+                    onChange={(e) => set('notes', e.target.value)}
+                    rows={3}
+                  />
+                </div>
               </div>
-              <div className="form-field">
-                <label>CIN *</label>
-                <input
-                  type="text"
-                  placeholder="e.g. AB123456"
-                  value={form.student_cin}
-                  onChange={(e) => set('student_cin', e.target.value)}
-                  className={errors.student_cin ? 'error' : ''}
-                />
-                {errors.student_cin && <span className="error-msg">{errors.student_cin}</span>}
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-field">
-                <label>Phone Number</label>
-                <input
-                  type="tel"
-                  placeholder="Phone number"
-                  value={form.student_phone}
-                  onChange={(e) => set('student_phone', e.target.value)}
-                />
-              </div>
-              <div className="form-field">
-                <label>Email</label>
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={form.student_email}
-                  onChange={(e) => set('student_email', e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="form-row">
-              <div className="form-field">
-                <label>Category</label>
-                <select value={form.category} onChange={(e) => set('category', e.target.value)}>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      Category {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-field">
-                <label>Instructor</label>
-                <input
-                  type="text"
-                  placeholder="Instructor name"
-                  value={form.instructor}
-                  onChange={(e) => set('instructor', e.target.value)}
-                />
-              </div>
-            </div>
+            )}
           </div>
 
           <div className="form-section">
@@ -488,15 +548,6 @@ const PaymentModal = ({ payment, onClose, onSave, isSaving }) => {
                 />
               </div>
             </div>
-            <div className="form-field full-width">
-              <label>Notes</label>
-              <textarea
-                placeholder="Additional notes..."
-                value={form.notes}
-                onChange={(e) => set('notes', e.target.value)}
-                rows={3}
-              />
-            </div>
           </div>
         </div>
 
@@ -526,6 +577,7 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onS
     isOverdue && payment.due_date
       ? Math.ceil((new Date() - new Date(payment.due_date)) / 86400000)
       : null;
+  const isExpense = payment.type === 'Maintenance' || payment.type === 'Incident';
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -548,7 +600,7 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onS
               </span>
             </div>
             <div className="amount-breakdown">
-              <div className="breakdown-item green">
+              <div className={`breakdown-item ${isExpense ? 'red' : 'green'}`}>
                 <span>Paid</span>
                 <strong>{amountPaid.toLocaleString()} DH</strong>
               </div>
@@ -568,41 +620,51 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onS
           <div className="detail-grid">
             <div className="detail-section">
               <h4>
-                <User size={13} /> Student Information
+                {isExpense ? <Wrench size={13} /> : <User size={13} />}
+                {isExpense ? 'Expense Information' : 'Student Information'}
               </h4>
               <div className="detail-rows">
-                <div className="detail-row">
-                  <span>Name</span>
-                  <strong>{payment.student_name}</strong>
-                </div>
-                <div className="detail-row">
-                  <span>CIN</span>
-                  <strong className="mono">{payment.student_cin}</strong>
-                </div>
-                {payment.student_phone && (
-                  <div className="detail-row">
-                    <Phone size={12} />
-                    <span>Phone</span>
-                    <strong>{payment.student_phone}</strong>
+                {!isExpense ? (
+                  <>
+                    <div className="detail-row">
+                      <span>Name</span>
+                      <strong>{payment.student_name}</strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>CIN</span>
+                      <strong className="mono">{payment.student_cin}</strong>
+                    </div>
+                    {payment.student_phone && (
+                      <div className="detail-row">
+                        <Phone size={12} />
+                        <span>Phone</span>
+                        <strong>{payment.student_phone}</strong>
+                      </div>
+                    )}
+                    {payment.student_email && (
+                      <div className="detail-row">
+                        <Mail size={12} />
+                        <span>Email</span>
+                        <strong>{payment.student_email}</strong>
+                      </div>
+                    )}
+                    <div className="detail-row">
+                      <span>Category</span>
+                      <strong>
+                        <span className="category-badge">{payment.category}</span>
+                      </strong>
+                    </div>
+                    <div className="detail-row">
+                      <span>Instructor</span>
+                      <strong>{payment.instructor || '—'}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="detail-row full-width">
+                    <span>Description</span>
+                    <strong>{payment.notes || 'No description provided'}</strong>
                   </div>
                 )}
-                {payment.student_email && (
-                  <div className="detail-row">
-                    <Mail size={12} />
-                    <span>Email</span>
-                    <strong>{payment.student_email}</strong>
-                  </div>
-                )}
-                <div className="detail-row">
-                  <span>Category</span>
-                  <strong>
-                    <span className="category-badge">{payment.category}</span>
-                  </strong>
-                </div>
-                <div className="detail-row">
-                  <span>Instructor</span>
-                  <strong>{payment.instructor || '—'}</strong>
-                </div>
               </div>
             </div>
             <div className="detail-section">
@@ -618,7 +680,11 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onS
                 </div>
                 <div className="detail-row">
                   <span>Type</span>
-                  <strong>{payment.type}</strong>
+                  <strong>
+                    <span className={`type-badge ${payment.type?.toLowerCase()}`}>
+                      {payment.type}
+                    </span>
+                  </strong>
                 </div>
                 <div className="detail-row">
                   <span>Date</span>
@@ -659,9 +725,11 @@ const PaymentDetail = ({ payment, onClose, onEdit, onDelete, onPrintReceipt, onS
           <button className="btn-print" onClick={() => onPrintReceipt(payment)}>
             <Printer size={14} /> Print Receipt
           </button>
-          <button className="btn-email" onClick={() => onSendReceipt(payment)}>
-            <Send size={14} /> Email Receipt
-          </button>
+          {!isExpense && (
+            <button className="btn-email" onClick={() => onSendReceipt(payment)}>
+              <Send size={14} /> Email Receipt
+            </button>
+          )}
           <div className="footer-right">
             <button className="btn-delete" onClick={() => onDelete(payment)}>
               <Trash2 size={14} /> Delete
@@ -686,7 +754,12 @@ const DeleteConfirm = ({ payment, onConfirm, onCancel, isDeleting }) => (
       <h3>Delete Payment?</h3>
       <p>
         Are you sure you want to delete payment <strong>{payment.reference}</strong> for{' '}
-        <strong>{payment.student_name}</strong>? This action cannot be undone.
+        <strong>
+          {payment.type === 'Maintenance' || payment.type === 'Incident'
+            ? payment.type
+            : payment.student_name}
+        </strong>
+        ? This action cannot be undone.
       </p>
       <div className="delete-actions">
         <button className="btn-cancel" onClick={onCancel}>
@@ -710,11 +783,11 @@ const Toast = ({ toast }) =>
   ) : null;
 
 /* ── KPI Card Component ── */
-const KpiCard = ({ icon: Icon, label, value, trend, trendValue, trendUp }) => (
-  <div className="kpi-card">
+const KpiCard = ({ icon: Icon, label, value, trend, trendValue, trendUp, isExpense }) => (
+  <div className={`kpi-card ${isExpense ? 'expense-kpi' : ''}`}>
     <div className="kpi-icon">{Icon}</div>
     <div className="kpi-info">
-      <div className="kpi-value">{value}</div>
+      <div className={`kpi-value ${isExpense ? 'expense-value' : ''}`}>{value}</div>
       <div className="kpi-label">{label}</div>
       {trend && (
         <div className={`kpi-trend ${trendUp ? 'trend-up' : 'trend-down'}`}>
@@ -746,6 +819,11 @@ const Payments = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
+  // Expense tracking states
+  const [maintenanceTotal, setMaintenanceTotal] = useState(0);
+  const [incidentTotal, setIncidentTotal] = useState(0);
+  const [netRevenue, setNetRevenue] = useState(0);
+
   const { addNotification } = useNotifications();
 
   const showToast = (msg, type = 'success') => {
@@ -769,6 +847,21 @@ const Payments = () => {
           amount_remaining: Number(payment.amount_remaining) || 0,
         }));
         setPayments(paymentsData);
+
+        // Calculate expense totals
+        const maintenance = paymentsData
+          .filter((p) => p.type === 'Maintenance')
+          .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+        const incidents = paymentsData
+          .filter((p) => p.type === 'Incident')
+          .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+        const revenue = paymentsData
+          .filter((p) => ['Registration', 'Session', 'Exam'].includes(p.type))
+          .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+        setMaintenanceTotal(maintenance);
+        setIncidentTotal(incidents);
+        setNetRevenue(revenue - maintenance - incidents);
       } else {
         setPayments([]);
       }
@@ -791,6 +884,7 @@ const Payments = () => {
       return {
         total: 0,
         totalRevenue: 0,
+        totalExpenses: 0,
         totalPending: 0,
         paid: 0,
         overdue: 0,
@@ -799,10 +893,12 @@ const Payments = () => {
       };
     }
 
-    const totalRevenue = payments.reduce(
-      (sum, payment) => sum + (Number(payment.amount_paid) || 0),
-      0,
-    );
+    const totalRevenue = payments
+      .filter((p) => ['Registration', 'Session', 'Exam'].includes(p.type))
+      .reduce((sum, payment) => sum + (Number(payment.amount_paid) || 0), 0);
+    const totalExpenses = payments
+      .filter((p) => ['Maintenance', 'Incident'].includes(p.type))
+      .reduce((sum, payment) => sum + (Number(payment.amount_paid) || 0), 0);
     const totalPending = payments.reduce(
       (sum, payment) => sum + (Number(payment.amount_remaining) || 0),
       0,
@@ -816,6 +912,7 @@ const Payments = () => {
     return {
       total: payments.length,
       totalRevenue,
+      totalExpenses,
       totalPending,
       paid,
       overdue,
@@ -833,7 +930,9 @@ const Payments = () => {
           p.student_name?.toLowerCase().includes(search.toLowerCase()) ||
           p.student_cin?.toLowerCase().includes(search.toLowerCase()) ||
           p.reference?.toLowerCase().includes(search.toLowerCase()) ||
-          (p.instructor && p.instructor.toLowerCase().includes(search.toLowerCase())),
+          (p.instructor && p.instructor.toLowerCase().includes(search.toLowerCase())) ||
+          (p.type && p.type.toLowerCase().includes(search.toLowerCase())) ||
+          (p.notes && p.notes.toLowerCase().includes(search.toLowerCase())),
       );
     }
     if (filterStatus !== 'All') list = list.filter((p) => p.status === filterStatus);
@@ -974,12 +1073,17 @@ const Payments = () => {
         await fetchPayments();
 
         if (isNew) {
+          const isExpense = form.type === 'Maintenance' || form.type === 'Incident';
+          const message = isExpense
+            ? `${form.type} expense of ${Number(form.amount_paid).toLocaleString()} DH recorded`
+            : `Payment of ${Number(form.amount_paid).toLocaleString()} DH received from ${form.student_name}`;
+
           addNotification(
-            'New Payment Recorded',
-            `Payment of ${Number(form.amount_paid).toLocaleString()} DH received from ${form.student_name}`,
+            isExpense ? 'New Expense Recorded' : 'New Payment Recorded',
+            message,
             'payment',
           );
-          showToast('Payment created successfully');
+          showToast(isExpense ? 'Expense recorded successfully' : 'Payment created successfully');
         } else {
           showToast('Payment updated successfully');
         }
@@ -1032,12 +1136,12 @@ const Payments = () => {
         <div className="header-content">
           <div className="header-title">
             <h1>Global Payments</h1>
-            <p>Track all student payments, transactions and outstanding balances</p>
+            <p>Track all student payments, vehicle expenses, and financial transactions</p>
           </div>
           <div className="revenue-card">
-            <span className="revenue-label">Total Collected</span>
+            <span className="revenue-label">Net Revenue</span>
             <span className="revenue-value">
-              {kpis.totalRevenue.toLocaleString()} <small>DH</small>
+              {netRevenue.toLocaleString()} <small>DH</small>
             </span>
             <div className="collection-progress">
               <div
@@ -1067,6 +1171,29 @@ const Payments = () => {
           trend="+12.4%"
           trendValue="this month"
           trendUp={true}
+        />
+        <KpiCard
+          icon={<Wrench size={24} />}
+          label="Maintenance Expenses"
+          value={`${(maintenanceTotal / 1000).toFixed(1)}k DH`}
+          trend="Vehicle costs"
+          trendUp={null}
+          isExpense={true}
+        />
+        <KpiCard
+          icon={<AlertTriangle size={24} />}
+          label="Incident Costs"
+          value={`${(incidentTotal / 1000).toFixed(1)}k DH`}
+          trend="Damage repairs"
+          trendUp={null}
+          isExpense={true}
+        />
+        <KpiCard
+          icon={<DollarSign size={24} />}
+          label="Net Revenue"
+          value={`${(netRevenue / 1000).toFixed(1)}k DH`}
+          trend="After expenses"
+          trendUp={netRevenue >= 0}
         />
         <KpiCard
           icon={<Clock size={24} />}
@@ -1107,7 +1234,7 @@ const Payments = () => {
             className="search-input"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, CIN, reference, instructor..."
+            placeholder="Search by name, CIN, reference, type, notes..."
           />
         </div>
         <select
@@ -1159,7 +1286,7 @@ const Payments = () => {
             setModal('add');
           }}
         >
-          <Plus size={16} /> New Payment
+          <Plus size={16} /> New Transaction
         </button>
       </div>
 
@@ -1168,8 +1295,8 @@ const Payments = () => {
           {filtered.length === 0 ? (
             <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
               <CreditCard size={48} />
-              <div>No payments found</div>
-              <p>Try adjusting your filters or create a new payment</p>
+              <div>No transactions found</div>
+              <p>Try adjusting your filters or create a new transaction</p>
             </div>
           ) : (
             filtered.map((payment) => (
@@ -1205,7 +1332,7 @@ const Payments = () => {
                     Reference <SortIcon field="reference" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th onClick={() => toggleSort('student_name')}>
-                    Student{' '}
+                    Student/Expense{' '}
                     <SortIcon field="student_name" sortField={sortField} sortDir={sortDir} />
                   </th>
                   <th onClick={() => toggleSort('type')}>
@@ -1238,95 +1365,119 @@ const Payments = () => {
                   <tr>
                     <td colSpan="10" className="empty-state">
                       <CreditCard size={32} />
-                      <div>No payments found</div>
+                      <div>No transactions found</div>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((p) => (
-                    <tr key={p.id} onClick={() => setDetailPayment(p)}>
-                      <td>
-                        <span className="reference-badge">{p.reference}</span>
-                      </td>
-                      <td>
-                        <div className="student-info-cell">
-                          <div className="student-avatar-sm">
-                            {p.student_name
-                              ?.split(' ')
-                              .map((w) => w[0])
-                              .join('')
-                              .slice(0, 2)
-                              .toUpperCase() || '??'}
+                  filtered.map((p) => {
+                    const isExpense = p.type === 'Maintenance' || p.type === 'Incident';
+                    return (
+                      <tr
+                        key={p.id}
+                        onClick={() => setDetailPayment(p)}
+                        className={isExpense ? 'expense-row' : ''}
+                      >
+                        <td>
+                          <span className="reference-badge">{p.reference}</span>
+                        </td>
+                        <td>
+                          <div className="student-info-cell">
+                            <div
+                              className={`student-avatar-sm ${isExpense ? 'expense-avatar' : ''}`}
+                            >
+                              {isExpense ? (
+                                p.type === 'Maintenance' ? (
+                                  <Wrench size={14} />
+                                ) : (
+                                  <AlertTriangle size={14} />
+                                )
+                              ) : (
+                                p.student_name
+                                  ?.split(' ')
+                                  .map((w) => w[0])
+                                  .join('')
+                                  .slice(0, 2)
+                                  .toUpperCase() || '??'
+                              )}
+                            </div>
+                            <div>
+                              <div className="student-name-cell">
+                                {isExpense ? p.type : p.student_name}
+                              </div>
+                              {!isExpense && (
+                                <div className="student-cin-cell">{p.student_cin}</div>
+                              )}
+                              {isExpense && p.notes && (
+                                <div className="expense-note-preview">{p.notes.slice(0, 50)}</div>
+                              )}
+                            </div>
                           </div>
-                          <div>
-                            <div className="student-name-cell">{p.student_name}</div>
-                            <div className="student-cin-cell">{p.student_cin}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="type-badge">{p.type}</span>
-                      </td>
-                      <td className="amount-cell total">
-                        {(Number(p.amount_total) || 0).toLocaleString()} DH
-                      </td>
-                      <td className="amount-cell paid">
-                        {(Number(p.amount_paid) || 0).toLocaleString()} DH
-                      </td>
-                      <td className="amount-cell remaining">
-                        {p.amount_remaining > 0 ? (
-                          <span className="text-danger">
-                            {(Number(p.amount_remaining) || 0).toLocaleString()} DH
+                        </td>
+                        <td>
+                          <span className={`type-badge ${p.type?.toLowerCase()}`}>{p.type}</span>
+                        </td>
+                        <td className={`amount-cell total ${isExpense ? 'expense-amount' : ''}`}>
+                          {(Number(p.amount_total) || 0).toLocaleString()} DH
+                        </td>
+                        <td className={`amount-cell paid ${isExpense ? 'expense-paid' : ''}`}>
+                          {(Number(p.amount_paid) || 0).toLocaleString()} DH
+                        </td>
+                        <td className="amount-cell remaining">
+                          {p.amount_remaining > 0 ? (
+                            <span className="text-danger">
+                              {(Number(p.amount_remaining) || 0).toLocaleString()} DH
+                            </span>
+                          ) : (
+                            <span className="text-success">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className="method-text">
+                            <MethodIcon method={p.method} /> {p.method}
                           </span>
-                        ) : (
-                          <span className="text-success">—</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="method-text">
-                          <MethodIcon method={p.method} /> {p.method}
-                        </span>
-                      </td>
-                      <td>
-                        <StatusBadge status={p.status} />
-                      </td>
-                      <td className="date-text">{p.date}</td>
-                      <td>
-                        <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className="action-btn"
-                            onClick={() => setDetailPayment(p)}
-                            title="View"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => {
-                              setEditPayment(p);
-                              setModal('edit');
-                            }}
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => handlePrintReceipt(p)}
-                            title="Print"
-                          >
-                            <Printer size={14} />
-                          </button>
-                          <button
-                            className="action-btn"
-                            onClick={() => setDeleteTarget(p)}
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td>
+                          <StatusBadge status={p.status} />
+                        </td>
+                        <td className="date-text">{p.date}</td>
+                        <td>
+                          <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="action-btn"
+                              onClick={() => setDetailPayment(p)}
+                              title="View"
+                            >
+                              <Eye size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => {
+                                setEditPayment(p);
+                                setModal('edit');
+                              }}
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => handlePrintReceipt(p)}
+                              title="Print"
+                            >
+                              <Printer size={14} />
+                            </button>
+                            <button
+                              className="action-btn"
+                              onClick={() => setDeleteTarget(p)}
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1334,19 +1485,35 @@ const Payments = () => {
           <div className="table-footer">
             <div className="footer-summary">
               <span>
-                Showing {filtered.length} of {payments.length} payments
+                Showing {filtered.length} of {payments.length} transactions
               </span>
               <span className="footer-totals">
-                Collected:{' '}
-                <strong>
-                  {filtered.reduce((s, p) => s + (Number(p.amount_paid) || 0), 0).toLocaleString()}{' '}
+                Revenue:{' '}
+                <strong className="text-success">
+                  {filtered
+                    .filter((p) => ['Registration', 'Session', 'Exam'].includes(p.type))
+                    .reduce((s, p) => s + (Number(p.amount_paid) || 0), 0)
+                    .toLocaleString()}{' '}
                   DH
                 </strong>{' '}
-                · Remaining:{' '}
+                · Expenses:{' '}
                 <strong className="text-danger">
                   {filtered
-                    .reduce((s, p) => s + (Number(p.amount_remaining) || 0), 0)
+                    .filter((p) => ['Maintenance', 'Incident'].includes(p.type))
+                    .reduce((s, p) => s + (Number(p.amount_paid) || 0), 0)
                     .toLocaleString()}{' '}
+                  DH
+                </strong>{' '}
+                · Net:{' '}
+                <strong>
+                  {(
+                    filtered
+                      .filter((p) => ['Registration', 'Session', 'Exam'].includes(p.type))
+                      .reduce((s, p) => s + (Number(p.amount_paid) || 0), 0) -
+                    filtered
+                      .filter((p) => ['Maintenance', 'Incident'].includes(p.type))
+                      .reduce((s, p) => s + (Number(p.amount_paid) || 0), 0)
+                  ).toLocaleString()}{' '}
                   DH
                 </strong>
               </span>

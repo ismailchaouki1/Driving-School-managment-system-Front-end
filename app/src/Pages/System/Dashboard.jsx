@@ -1,4 +1,4 @@
-// Pages/System/Dashboard.jsx - Fixed version without unused variables
+// Pages/System/Dashboard.jsx
 import { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp,
@@ -46,6 +46,7 @@ import {
   PieChart,
   LineChart,
   Wrench,
+  AlertTriangle,
 } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -64,15 +65,17 @@ const KpiCard = ({
   prefix = '',
   suffix = '',
   bgColor = '#f8fafc',
+  isExpense = false,
 }) => {
   const Icon = IconComponent;
+  const displayValue = typeof value === 'number' ? value.toLocaleString() : value || 0;
   return (
-    <div className="kpi-card" style={{ background: bgColor }}>
+    <div className={`kpi-card ${isExpense ? 'expense-kpi' : ''}`} style={{ background: bgColor }}>
       <div className="kpi-icon">{Icon && <Icon size={24} />}</div>
       <div className="kpi-info">
-        <div className="kpi-value">
+        <div className={`kpi-value ${isExpense ? 'expense-value' : ''}`}>
           {prefix}
-          {typeof value === 'number' ? value.toLocaleString() : value}
+          {displayValue}
           {suffix}
         </div>
         <div className="kpi-label">{label}</div>
@@ -102,7 +105,8 @@ const StatusBadge = ({ status }) => {
       {status === 'Pending' && <AlertCircle size={10} />}
       {status === 'Paid' && <CheckCircle size={10} />}
       {status === 'Active' && <CheckCircle size={10} />}
-      {status === 'Maintenance' && <AlertCircle size={10} />}
+      {status === 'Maintenance' && <Wrench size={10} />}
+      {status === 'Inactive' && <AlertCircle size={10} />}
       {status}
     </span>
   );
@@ -110,6 +114,7 @@ const StatusBadge = ({ status }) => {
 
 // Mini Bar Chart Component
 const MiniBarChart = ({ data, height = 40, color = '#8cff2e' }) => {
+  if (!data || data.length === 0) return null;
   const maxValue = Math.max(...data, 1);
   return (
     <div className="mini-bar-chart" style={{ height: `${height}px` }}>
@@ -120,7 +125,6 @@ const MiniBarChart = ({ data, height = 40, color = '#8cff2e' }) => {
           style={{
             height: `${(value / maxValue) * 100}%`,
             backgroundColor: color,
-            '--bar-height': `${(value / maxValue) * 100}%`,
           }}
         >
           <span className="mini-bar-value">{value}k MAD</span>
@@ -132,6 +136,7 @@ const MiniBarChart = ({ data, height = 40, color = '#8cff2e' }) => {
 
 // Mini Pie Chart Component
 const MiniPieChart = ({ data, size = 60 }) => {
+  if (!data || data.length === 0) return null;
   let cumulativeAngle = 0;
   const center = size / 2;
   const radius = size / 2 - 4;
@@ -192,13 +197,18 @@ const Dashboard = () => {
       activeStudents: 0,
       newStudentsThisMonth: 0,
       totalRevenue: 0,
+      totalExpenses: 0,
+      netRevenue: 0,
       monthlyRevenue: 0,
+      monthlyExpenses: 0,
       revenueGrowth: 0,
       totalSessions: 0,
       completedSessions: 0,
       completionRate: 0,
       totalVehicles: 0,
       availableVehicles: 0,
+      vehiclesInMaintenance: 0,
+      vehiclesInactive: 0,
       pendingPayments: 0,
       collectionRate: 0,
     },
@@ -211,8 +221,10 @@ const Dashboard = () => {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       sessions: [0, 0, 0, 0, 0, 0, 0],
       revenue: [0, 0, 0, 0, 0, 0, 0],
+      expenses: [0, 0, 0, 0, 0, 0, 0],
     },
     monthlyRevenue: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    monthlyExpenses: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   });
 
   const { addNotification, unreadCount } = useNotifications();
@@ -245,14 +257,6 @@ const Dashboard = () => {
           axios.get('/payments'),
         ]);
 
-      console.log('Dashboard data fetched:', {
-        students: studentsRes.data,
-        instructors: instructorsRes.data,
-        vehicles: vehiclesRes.data,
-        sessions: sessionsRes.data,
-        payments: paymentsRes.data,
-      });
-
       // Process students
       const students = studentsRes.data.success ? studentsRes.data.data : [];
       const activeStudents = students.filter(
@@ -280,16 +284,40 @@ const Dashboard = () => {
         .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
         .slice(0, 5);
 
-      // Process payments
+      // Process payments - Separate revenue and expenses
       const payments = paymentsRes.data.success ? paymentsRes.data.data : [];
-      const totalRevenue = payments.reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
 
-      // Monthly revenue (current month)
+      // Revenue from Registration, Session, Exam
+      const totalRevenue = payments
+        .filter((p) => ['Registration', 'Session', 'Exam'].includes(p.type))
+        .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      // Expenses from Maintenance and Incident
+      const totalExpenses = payments
+        .filter((p) => ['Maintenance', 'Incident'].includes(p.type))
+        .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      const netRevenue = totalRevenue - totalExpenses;
+
+      // Monthly revenue and expenses
       const monthlyRevenue = payments
         .filter((p) => {
           const paymentDate = new Date(p.date);
           return (
-            paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear
+            paymentDate.getMonth() === currentMonth &&
+            paymentDate.getFullYear() === currentYear &&
+            ['Registration', 'Session', 'Exam'].includes(p.type)
+          );
+        })
+        .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
+
+      const monthlyExpenses = payments
+        .filter((p) => {
+          const paymentDate = new Date(p.date);
+          return (
+            paymentDate.getMonth() === currentMonth &&
+            paymentDate.getFullYear() === currentYear &&
+            ['Maintenance', 'Incident'].includes(p.type)
           );
         })
         .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
@@ -300,7 +328,11 @@ const Dashboard = () => {
       const previousMonthlyRevenue = payments
         .filter((p) => {
           const paymentDate = new Date(p.date);
-          return paymentDate.getMonth() === prevMonth && paymentDate.getFullYear() === prevYear;
+          return (
+            paymentDate.getMonth() === prevMonth &&
+            paymentDate.getFullYear() === prevYear &&
+            ['Registration', 'Session', 'Exam'].includes(p.type)
+          );
         })
         .reduce((sum, p) => sum + (Number(p.amount_paid) || 0), 0);
 
@@ -327,6 +359,10 @@ const Dashboard = () => {
       const vehicles = vehiclesRes.data.success ? vehiclesRes.data.data : [];
       const totalVehicles = vehicles.length;
       const availableVehicles = vehicles.filter((v) => v.status === 'Active').length;
+      const vehiclesInMaintenance = vehicles.filter((v) => v.status === 'Maintenance').length;
+      const vehiclesInactive = vehicles.filter(
+        (v) => v.status === 'Inactive' || v.status === 'Out of Service',
+      ).length;
 
       // Vehicle utilization (top 4)
       const vehicleUtilization = vehicles
@@ -385,6 +421,7 @@ const Dashboard = () => {
       const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
       const weeklySessions = [0, 0, 0, 0, 0, 0, 0];
       const weeklyRevenue = [0, 0, 0, 0, 0, 0, 0];
+      const weeklyExpenses = [0, 0, 0, 0, 0, 0, 0];
 
       const today_date = new Date();
       const startOfWeek = new Date(today_date);
@@ -394,7 +431,7 @@ const Dashboard = () => {
         const sessionDate = new Date(session.date);
         if (sessionDate >= startOfWeek && sessionDate <= today_date) {
           const dayIndex = sessionDate.getDay();
-          const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Convert to Mon-Sun (0-6)
+          const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
           if (adjustedIndex >= 0 && adjustedIndex < 7) {
             weeklySessions[adjustedIndex]++;
             if (session.payment_status === 'Paid') {
@@ -404,16 +441,38 @@ const Dashboard = () => {
         }
       });
 
-      // Calculate monthly revenue trend
+      // Calculate weekly expenses from payments
+      payments.forEach((payment) => {
+        if (['Maintenance', 'Incident'].includes(payment.type)) {
+          const paymentDate = new Date(payment.date);
+          if (paymentDate >= startOfWeek && paymentDate <= today_date) {
+            const dayIndex = paymentDate.getDay();
+            const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+            if (adjustedIndex >= 0 && adjustedIndex < 7) {
+              weeklyExpenses[adjustedIndex] += Number(payment.amount_paid) || 0;
+            }
+          }
+        }
+      });
+
+      // Calculate monthly revenue and expense trends
       const monthlyRevenueTrend = Array(12).fill(0);
+      const monthlyExpensesTrend = Array(12).fill(0);
+
       payments.forEach((payment) => {
         const paymentDate = new Date(payment.date);
         const month = paymentDate.getMonth();
         if (paymentDate.getFullYear() === currentYear) {
-          monthlyRevenueTrend[month] += Number(payment.amount_paid) || 0;
+          if (['Registration', 'Session', 'Exam'].includes(payment.type)) {
+            monthlyRevenueTrend[month] += Number(payment.amount_paid) || 0;
+          } else if (['Maintenance', 'Incident'].includes(payment.type)) {
+            monthlyExpensesTrend[month] += Number(payment.amount_paid) || 0;
+          }
         }
       });
+
       const monthlyRevenueK = monthlyRevenueTrend.map((amount) => Math.round(amount / 1000));
+      const monthlyExpensesK = monthlyExpensesTrend.map((amount) => Math.round(amount / 1000));
 
       setDashboardData({
         students,
@@ -426,13 +485,18 @@ const Dashboard = () => {
           activeStudents,
           newStudentsThisMonth,
           totalRevenue,
+          totalExpenses,
+          netRevenue,
           monthlyRevenue,
+          monthlyExpenses,
           revenueGrowth,
           totalSessions,
           completedSessions,
           completionRate,
           totalVehicles,
           availableVehicles,
+          vehiclesInMaintenance,
+          vehiclesInactive,
           pendingPayments,
           collectionRate,
         },
@@ -445,8 +509,10 @@ const Dashboard = () => {
           labels: weekDays,
           sessions: weeklySessions,
           revenue: weeklyRevenue,
+          expenses: weeklyExpenses,
         },
         monthlyRevenue: monthlyRevenueK,
+        monthlyExpenses: monthlyExpensesK,
       });
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -484,11 +550,6 @@ const Dashboard = () => {
     addNotification('Dashboard Refreshed', 'All dashboard data has been updated', 'system');
   };
 
-  const handleExport = () => {
-    showToast('Report export started');
-    addNotification('Export Started', 'Dashboard report is being generated', 'system');
-  };
-
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return 'Good Morning';
@@ -499,6 +560,23 @@ const Dashboard = () => {
   // Get user name from localStorage
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const userName = user.name || 'User';
+
+  // Safely get values with fallbacks
+  const stats = dashboardData.stats || {};
+  const weeklyActivity = dashboardData.weeklyActivity || {
+    labels: [],
+    sessions: [],
+    revenue: [],
+    expenses: [],
+  };
+  const monthlyRevenue = dashboardData.monthlyRevenue || Array(12).fill(0);
+  // const monthlyExpenses = dashboardData.monthlyExpenses || Array(12).fill(0);
+  const categoryDistribution = dashboardData.categoryDistribution || [];
+  const vehicleUtilization = dashboardData.vehicleUtilization || [];
+  const todaySessions = dashboardData.todaySessions || [];
+  const recentPayments = dashboardData.recentPayments || [];
+  const topInstructors = dashboardData.topInstructors || [];
+  const instructors = dashboardData.instructors || [];
 
   return (
     <div className="dashboard-page">
@@ -530,10 +608,6 @@ const Dashboard = () => {
               <RefreshCw size={16} className={isRefreshing ? 'spinning' : ''} />
               Refresh
             </button>
-            <button className="action-btn export" onClick={handleExport}>
-              <Download size={16} />
-              Export Report
-            </button>
           </div>
         </div>
       </div>
@@ -556,10 +630,10 @@ const Dashboard = () => {
             <UsersIcon size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{dashboardData.stats.activeStudents}</div>
+            <div className="stat-value">{stats.activeStudents || 0}</div>
             <div className="stat-label">Active Students</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> +{dashboardData.stats.newStudentsThisMonth} this month
+              <TrendingUp size={10} /> +{stats.newStudentsThisMonth || 0} this month
             </div>
           </div>
         </div>
@@ -568,10 +642,10 @@ const Dashboard = () => {
             <CalendarIcon size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{dashboardData.stats.totalSessions}</div>
+            <div className="stat-value">{stats.totalSessions || 0}</div>
             <div className="stat-label">Total Sessions</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> {Math.round(dashboardData.stats.completionRate)}% completed
+              <TrendingUp size={10} /> {Math.round(stats.completionRate || 0)}% completed
             </div>
           </div>
         </div>
@@ -580,12 +654,10 @@ const Dashboard = () => {
             <DollarSign size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">
-              {dashboardData.stats.monthlyRevenue.toLocaleString()} MAD
-            </div>
+            <div className="stat-value">{(stats.monthlyRevenue || 0).toLocaleString()} MAD</div>
             <div className="stat-label">Monthly Revenue</div>
             <div className="stat-trend positive">
-              <TrendingUp size={10} /> +{Math.abs(dashboardData.stats.revenueGrowth).toFixed(1)}%
+              <TrendingUp size={10} /> +{Math.abs(stats.revenueGrowth || 0).toFixed(1)}%
             </div>
           </div>
         </div>
@@ -594,7 +666,7 @@ const Dashboard = () => {
             <Target size={20} />
           </div>
           <div className="stat-info">
-            <div className="stat-value">{Math.round(dashboardData.stats.completionRate)}%</div>
+            <div className="stat-value">{Math.round(stats.completionRate || 0)}%</div>
             <div className="stat-label">Completion Rate</div>
             <div className="stat-trend positive">
               <TrendingUp size={10} /> +5%
@@ -608,29 +680,46 @@ const Dashboard = () => {
         <KpiCard
           icon={Wallet}
           label="Total Revenue"
-          value={dashboardData.stats.totalRevenue}
+          value={stats.totalRevenue || 0}
           prefix="MAD "
-          change={dashboardData.stats.revenueGrowth}
-          changeType={dashboardData.stats.revenueGrowth >= 0 ? 'up' : 'down'}
+          change={stats.revenueGrowth || 0}
+          changeType={stats.revenueGrowth >= 0 ? 'up' : 'down'}
+        />
+        <KpiCard
+          icon={Wrench}
+          label="Total Expenses"
+          value={stats.totalExpenses || 0}
+          prefix="MAD "
+          change={12.5}
+          changeType="up"
+          isExpense={true}
+        />
+        <KpiCard
+          icon={DollarSign}
+          label="Net Revenue"
+          value={stats.netRevenue || 0}
+          prefix="MAD "
+          change={stats.netRevenue >= 0 ? 8.2 : -5.3}
+          changeType={stats.netRevenue >= 0 ? 'up' : 'down'}
         />
         <KpiCard
           icon={Users}
           label="Total Students"
-          value={dashboardData.stats.totalStudents}
+          value={stats.totalStudents || 0}
           change={8.5}
           changeType="up"
         />
         <KpiCard
           icon={Car}
           label="Available Vehicles"
-          value={`${dashboardData.stats.availableVehicles}/${dashboardData.stats.totalVehicles}`}
+          value={`${stats.availableVehicles || 0}/${stats.totalVehicles || 0}`}
           change={-2}
           changeType="down"
         />
         <KpiCard
           icon={CreditCard}
           label="Collection Rate"
-          value={Math.round(dashboardData.stats.collectionRate)}
+          value={Math.round(stats.collectionRate || 0)}
           suffix="%"
           change={3.2}
           changeType="up"
@@ -638,7 +727,7 @@ const Dashboard = () => {
         <KpiCard
           icon={Clock}
           label="Pending Payments"
-          value={dashboardData.stats.pendingPayments}
+          value={stats.pendingPayments || 0}
           prefix="MAD "
           change={-5.1}
           changeType="down"
@@ -646,11 +735,36 @@ const Dashboard = () => {
         <KpiCard
           icon={Award}
           label="Completion Rate"
-          value={Math.round(dashboardData.stats.completionRate)}
+          value={Math.round(stats.completionRate || 0)}
           suffix="%"
           change={2.5}
           changeType="up"
         />
+      </div>
+
+      {/* Vehicle Status Summary */}
+      <div className="vehicle-status-summary">
+        <div className="status-card active">
+          <CheckCircle size={20} />
+          <div>
+            <span className="status-value">{stats.availableVehicles || 0}</span>
+            <span className="status-label">Active Vehicles</span>
+          </div>
+        </div>
+        <div className="status-card maintenance">
+          <Wrench size={20} />
+          <div>
+            <span className="status-value">{stats.vehiclesInMaintenance || 0}</span>
+            <span className="status-label">In Maintenance</span>
+          </div>
+        </div>
+        <div className="status-card inactive">
+          <AlertCircle size={20} />
+          <div>
+            <span className="status-value">{stats.vehiclesInactive || 0}</span>
+            <span className="status-label">Inactive/Out of Service</span>
+          </div>
+        </div>
       </div>
 
       {/* Charts Row */}
@@ -669,16 +783,16 @@ const Dashboard = () => {
           </div>
           <div className="weekly-chart">
             <div className="chart-bars">
-              {dashboardData.weeklyActivity.sessions.map((value, index) => {
-                const maxRevenue = Math.max(...dashboardData.weeklyActivity.revenue, 1);
-                const maxSessions = Math.max(...dashboardData.weeklyActivity.sessions, 1);
+              {(weeklyActivity.sessions || []).map((value, index) => {
+                const maxRevenue = Math.max(...(weeklyActivity.revenue || [0]), 1);
+                const maxSessions = Math.max(...(weeklyActivity.sessions || [0]), 1);
                 return (
                   <div key={index} className="bar-container">
                     <div className="bar-wrapper">
                       <div
                         className="bar revenue-bar"
                         style={{
-                          height: `${(dashboardData.weeklyActivity.revenue[index] / maxRevenue) * 100}%`,
+                          height: `${((weeklyActivity.revenue || [0])[index] / maxRevenue) * 100}%`,
                         }}
                       />
                       <div
@@ -686,7 +800,7 @@ const Dashboard = () => {
                         style={{ height: `${(value / maxSessions) * 100}%` }}
                       />
                     </div>
-                    <span className="bar-label">{dashboardData.weeklyActivity.labels[index]}</span>
+                    <span className="bar-label">{(weeklyActivity.labels || [])[index]}</span>
                   </div>
                 );
               })}
@@ -713,10 +827,10 @@ const Dashboard = () => {
           </div>
           <div className="category-distribution">
             <div className="pie-container">
-              <MiniPieChart data={dashboardData.categoryDistribution} size={140} />
+              <MiniPieChart data={categoryDistribution} size={140} />
             </div>
             <div className="category-list">
-              {dashboardData.categoryDistribution.slice(0, 5).map((cat, index) => (
+              {categoryDistribution.slice(0, 5).map((cat, index) => (
                 <div key={index} className="category-item">
                   <span className="category-dot" style={{ background: cat.color }}></span>
                   <span className="category-name">{cat.name}</span>
@@ -739,7 +853,7 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="vehicle-list">
-            {dashboardData.vehicleUtilization.map((vehicle) => (
+            {vehicleUtilization.map((vehicle) => (
               <div key={vehicle.id} className="vehicle-item">
                 <div className="vehicle-info">
                   <div className="vehicle-name">
@@ -766,7 +880,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Sessions & Upcoming Events Row */}
+      {/* Recent Sessions & Payments Row */}
       <div className="tables-row">
         {/* Today's Sessions */}
         <div className="table-card">
@@ -780,10 +894,10 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="sessions-list">
-            {dashboardData.todaySessions.length === 0 ? (
+            {todaySessions.length === 0 ? (
               <div className="empty-state">No sessions scheduled for today</div>
             ) : (
-              dashboardData.todaySessions.map((session) => (
+              todaySessions.map((session) => (
                 <div key={session.id} className="session-item">
                   <div className="session-time">
                     <Clock size={14} />
@@ -805,40 +919,51 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Recent Payments */}
+        {/* Recent Payments & Expenses */}
         <div className="table-card">
           <div className="table-header">
             <h3>
               <Receipt size={18} />
-              Recent Payments
+              Recent Transactions
             </h3>
             <Link className="view-link" to={'/system/payments'}>
               View All <ChevronRight size={14} />
             </Link>
           </div>
           <div className="payments-list">
-            {dashboardData.recentPayments.length === 0 ? (
-              <div className="empty-state">No recent payments</div>
+            {recentPayments.length === 0 ? (
+              <div className="empty-state">No recent transactions</div>
             ) : (
-              dashboardData.recentPayments.map((payment) => (
-                <div key={payment.id} className="payment-item">
-                  <div className="payment-info">
-                    <div className="payment-student">{payment.student_name}</div>
-                    <div className="payment-details">
-                      <span className="payment-type">{payment.type}</span>
-                      <span className="payment-date">{payment.date}</span>
+              recentPayments.map((payment) => {
+                const isExpense = payment.type === 'Maintenance' || payment.type === 'Incident';
+                return (
+                  <div
+                    key={payment.id}
+                    className={`payment-item ${isExpense ? 'expense-item' : ''}`}
+                  >
+                    <div className="payment-info">
+                      <div className="payment-student">
+                        {isExpense ? payment.type : payment.student_name}
+                      </div>
+                      <div className="payment-details">
+                        <span className={`payment-type ${isExpense ? 'expense' : 'revenue'}`}>
+                          {payment.type}
+                        </span>
+                        <span className="payment-date">{payment.date}</span>
+                      </div>
+                    </div>
+                    <div className="payment-amount">
+                      <span
+                        className={`amount ${isExpense ? 'expense-amount' : payment.status === 'Paid' ? 'positive' : 'pending'}`}
+                      >
+                        {isExpense ? '-' : ''}
+                        {(Number(payment.amount_paid) || 0).toLocaleString()} MAD
+                      </span>
+                      <StatusBadge status={payment.status} />
                     </div>
                   </div>
-                  <div className="payment-amount">
-                    <span
-                      className={`amount ${payment.status === 'Paid' ? 'positive' : 'pending'}`}
-                    >
-                      {(Number(payment.amount_paid) || 0).toLocaleString()} MAD
-                    </span>
-                    <StatusBadge status={payment.status} />
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -854,19 +979,29 @@ const Dashboard = () => {
           <div className="quick-stats-list">
             <div className="stat-row">
               <span className="stat-label">Total Instructors</span>
-              <span className="stat-value">{dashboardData.instructors.length}</span>
+              <span className="stat-value">{instructors.length}</span>
             </div>
             <div className="stat-row">
               <span className="stat-label">Active Vehicles</span>
-              <span className="stat-value">{dashboardData.stats.availableVehicles}</span>
+              <span className="stat-value">{stats.availableVehicles || 0}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Vehicles in Maintenance</span>
+              <span className="stat-value">{stats.vehiclesInMaintenance || 0}</span>
             </div>
             <div className="stat-row">
               <span className="stat-label">Completed Sessions</span>
-              <span className="stat-value">{dashboardData.stats.completedSessions}</span>
+              <span className="stat-value">{stats.completedSessions || 0}</span>
             </div>
             <div className="stat-row">
               <span className="stat-label">Collection Rate</span>
-              <span className="stat-value">{Math.round(dashboardData.stats.collectionRate)}%</span>
+              <span className="stat-value">{Math.round(stats.collectionRate || 0)}%</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">Monthly Expenses</span>
+              <span className="stat-value expense-value">
+                {(stats.monthlyExpenses || 0).toLocaleString()} MAD
+              </span>
             </div>
           </div>
         </div>
@@ -886,10 +1021,10 @@ const Dashboard = () => {
             </Link>
           </div>
           <div className="instructors-list">
-            {dashboardData.topInstructors.length === 0 ? (
+            {topInstructors.length === 0 ? (
               <div className="empty-state">No instructor data available</div>
             ) : (
-              dashboardData.topInstructors.map((instructor) => (
+              topInstructors.map((instructor) => (
                 <div key={instructor.id} className="instructor-item">
                   <div className="instructor-avatar">
                     {instructor.name
@@ -928,25 +1063,15 @@ const Dashboard = () => {
               <LineChart size={18} />
               Revenue Trend
             </h3>
-            <span
-              className={`trend-value ${dashboardData.stats.revenueGrowth >= 0 ? 'positive' : 'negative'}`}
-            >
-              {dashboardData.stats.revenueGrowth >= 0 ? (
-                <TrendingUp size={12} />
-              ) : (
-                <TrendingDown size={12} />
-              )}
-              {dashboardData.stats.revenueGrowth >= 0 ? '+' : ''}
-              {dashboardData.stats.revenueGrowth.toFixed(1)}% vs last month
+            <span className={`trend-value ${stats.revenueGrowth >= 0 ? 'positive' : 'negative'}`}>
+              {stats.revenueGrowth >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {stats.revenueGrowth >= 0 ? '+' : ''}
+              {stats.revenueGrowth.toFixed(1)}% vs last month
             </span>
           </div>
           <div className="revenue-trend">
             <MiniBarChart
-              data={
-                dashboardData.monthlyRevenue.length > 0
-                  ? dashboardData.monthlyRevenue
-                  : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-              }
+              data={monthlyRevenue.length > 0 ? monthlyRevenue : Array(12).fill(0)}
               height={120}
               color="#8cff2e"
             />
@@ -958,11 +1083,10 @@ const Dashboard = () => {
           </div>
           <div className="revenue-summary">
             <div className="summary-item">
-              <span>Average Monthly</span>
+              <span>Average Monthly Revenue</span>
               <strong>
-                {dashboardData.monthlyRevenue.length > 0 &&
-                dashboardData.monthlyRevenue.some((v) => v > 0)
-                  ? Math.round(dashboardData.monthlyRevenue.reduce((a, b) => a + b, 0) / 12)
+                {monthlyRevenue.length > 0 && monthlyRevenue.some((v) => v > 0)
+                  ? Math.round(monthlyRevenue.reduce((a, b) => a + b, 0) / 12)
                   : 0}
                 k MAD
               </strong>
@@ -970,18 +1094,17 @@ const Dashboard = () => {
             <div className="summary-item">
               <span>Peak Month</span>
               <strong>
-                {dashboardData.monthlyRevenue.length > 0 &&
-                dashboardData.monthlyRevenue.some((v) => v > 0)
-                  ? Math.max(...dashboardData.monthlyRevenue)
+                {monthlyRevenue.length > 0 && monthlyRevenue.some((v) => v > 0)
+                  ? Math.max(...monthlyRevenue)
                   : 0}
                 k MAD
               </strong>
             </div>
             <div className="summary-item">
               <span>Growth Rate</span>
-              <strong className={dashboardData.stats.revenueGrowth >= 0 ? 'positive' : 'negative'}>
-                {dashboardData.stats.revenueGrowth >= 0 ? '+' : ''}
-                {dashboardData.stats.revenueGrowth.toFixed(1)}%
+              <strong className={stats.revenueGrowth >= 0 ? 'positive' : 'negative'}>
+                {stats.revenueGrowth >= 0 ? '+' : ''}
+                {stats.revenueGrowth.toFixed(1)}%
               </strong>
             </div>
           </div>
@@ -1011,6 +1134,10 @@ const Dashboard = () => {
             <Link to="/system/vehicles" className="action-button">
               <Wrench size={20} />
               <span>Schedule Maintenance</span>
+            </Link>
+            <Link to="/system/vehicles" className="action-button">
+              <AlertTriangle size={20} />
+              <span>Report Incident</span>
             </Link>
             <Link to="/system/statistics" className="action-button">
               <FileText size={20} />

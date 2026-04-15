@@ -21,22 +21,14 @@ import {
   ChevronUp,
   Grid,
   List,
-  Filter,
-  TrendingUp,
-  TrendingDown,
   Shield,
   Gauge,
   Upload,
   File,
-  Image,
   AlertTriangle,
-  MapPin,
   User,
   DollarSign,
-  Settings,
   RefreshCw,
-  Bell,
-  FileCheck,
   Truck,
   Loader,
 } from 'lucide-react';
@@ -127,16 +119,24 @@ const MaintenanceModal = ({ vehicle, onClose, onSave, isSaving }) => {
 
   const validate = () => {
     const e = {};
-    if (!form.date) e.date = 'Date is required';
+    if (!form.date) e.date = 'Maintenance date is required';
     if (!form.type) e.type = 'Maintenance type is required';
-    if (!form.mileage || form.mileage < 0) e.mileage = 'Valid mileage is required';
+    if (form.mileage === '' || form.mileage === null || form.mileage < 0) {
+      e.mileage = 'Valid mileage is required';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = () => {
     if (validate()) {
-      onSave({ ...form, id: Date.now() });
+      onSave({
+        date: form.date,
+        type: form.type,
+        mileage: form.mileage,
+        cost: form.cost || 0,
+        notes: form.notes || '',
+      });
     }
   };
 
@@ -174,13 +174,18 @@ const MaintenanceModal = ({ vehicle, onClose, onSave, isSaving }) => {
             </div>
             <div className="form-field">
               <label>Maintenance Type *</label>
-              <select value={form.type} onChange={(e) => set('type', e.target.value)}>
+              <select
+                value={form.type}
+                onChange={(e) => set('type', e.target.value)}
+                className={errors.type ? 'error' : ''}
+              >
                 {MAINTENANCE_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
                 ))}
               </select>
+              {errors.type && <span className="error-msg">{errors.type}</span>}
             </div>
           </div>
           <div className="form-row">
@@ -191,6 +196,7 @@ const MaintenanceModal = ({ vehicle, onClose, onSave, isSaving }) => {
                 value={form.mileage}
                 onChange={(e) => set('mileage', parseInt(e.target.value) || 0)}
                 className={errors.mileage ? 'error' : ''}
+                placeholder="Enter current mileage"
               />
               {errors.mileage && <span className="error-msg">{errors.mileage}</span>}
             </div>
@@ -220,8 +226,8 @@ const MaintenanceModal = ({ vehicle, onClose, onSave, isSaving }) => {
             Cancel
           </button>
           <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? <Loader size={15} className="spinner" /> : <CheckCircle size={15} />}
-            Add Record
+            {isSaving ? <Loader size={15} className="spinner" /> : <Wrench size={15} />}
+            Add Maintenance Record
           </button>
         </div>
       </div>
@@ -344,22 +350,46 @@ const DocumentModal = ({ vehicle, onClose, onSave, isSaving }) => {
   );
 };
 
-/* ── Incident Report Modal ── */
-const IncidentModal = ({ vehicle, onClose, onSave, isSaving }) => {
-  const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0],
-    type: 'Accident',
-    description: '',
-    cost: '',
-    reported_by: '',
-    resolved: false,
+/* ── Incident Report Modal (Updated for Resolve) ── */
+const IncidentModal = ({ vehicle, onClose, onSave, isSaving, existingIncident, isResolving }) => {
+  const [form, setForm] = useState(() => {
+    if (existingIncident) {
+      return {
+        id: existingIncident.id,
+        date: existingIncident.date,
+        type: existingIncident.type,
+        description: existingIncident.description,
+        cost: existingIncident.cost || 0,
+        reported_by: existingIncident.reported_by || '',
+        resolved: existingIncident.resolved || false,
+      };
+    }
+    return {
+      date: new Date().toISOString().split('T')[0],
+      type: 'Accident',
+      description: '',
+      cost: '',
+      reported_by: '',
+      resolved: false,
+    };
   });
+  const [errors, setErrors] = useState({});
+  const isEditingIncident = !!existingIncident;
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const validate = () => {
+    const e = {};
+    if (!form.date) e.date = 'Incident date is required';
+    if (!form.type) e.type = 'Incident type is required';
+    if (!form.description?.trim()) e.description = 'Description is required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   const handleSubmit = () => {
-    if (form.description) {
-      onSave({ ...form, id: Date.now() });
+    if (validate()) {
+      onSave(form);
     }
   };
 
@@ -369,12 +399,14 @@ const IncidentModal = ({ vehicle, onClose, onSave, isSaving }) => {
         <div className="modal-header">
           <div className="modal-title-wrap">
             <div className="modal-icon">
-              <AlertTriangle size={22} color="#e74c3c" />
+              <AlertTriangle size={22} color={isEditingIncident ? '#8cff2e' : '#e74c3c'} />
             </div>
             <div>
-              <h2>Report Incident</h2>
+              <h2>{isEditingIncident ? 'Resolve Incident' : 'Report Incident'}</h2>
               <p>
-                Record incident for {vehicle?.brand} {vehicle?.model}
+                {isEditingIncident
+                  ? `Resolve incident for ${vehicle?.brand} ${vehicle?.model}`
+                  : `Record incident for ${vehicle?.brand} ${vehicle?.model}`}
               </p>
             </div>
           </div>
@@ -384,70 +416,135 @@ const IncidentModal = ({ vehicle, onClose, onSave, isSaving }) => {
         </div>
 
         <div className="modal-body">
-          <div className="form-row">
-            <div className="form-field">
-              <label>Incident Date</label>
-              <input type="date" value={form.date} onChange={(e) => set('date', e.target.value)} />
+          {!isEditingIncident ? (
+            <>
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Incident Date *</label>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => set('date', e.target.value)}
+                    className={errors.date ? 'error' : ''}
+                  />
+                  {errors.date && <span className="error-msg">{errors.date}</span>}
+                </div>
+                <div className="form-field">
+                  <label>Incident Type *</label>
+                  <select
+                    value={form.type}
+                    onChange={(e) => set('type', e.target.value)}
+                    className={errors.type ? 'error' : ''}
+                  >
+                    <option value="Accident">Accident</option>
+                    <option value="Damage">Damage</option>
+                    <option value="Traffic Violation">Traffic Violation</option>
+                    <option value="Theft">Theft</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  {errors.type && <span className="error-msg">{errors.type}</span>}
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-field">
+                  <label>Reported By</label>
+                  <input
+                    type="text"
+                    value={form.reported_by}
+                    onChange={(e) => set('reported_by', e.target.value)}
+                    placeholder="Name of person reporting"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Estimated Cost (MAD)</label>
+                  <input
+                    type="number"
+                    value={form.cost}
+                    onChange={(e) => set('cost', parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="form-field full-width">
+                <label>Description *</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                  rows={4}
+                  placeholder="Detailed description of the incident..."
+                  className={errors.description ? 'error' : ''}
+                />
+                {errors.description && <span className="error-msg">{errors.description}</span>}
+              </div>
+              <div className="form-field">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={form.resolved}
+                    onChange={(e) => set('resolved', e.target.checked)}
+                  />
+                  <span>Mark as Resolved</span>
+                </label>
+              </div>
+            </>
+          ) : (
+            <div className="resolve-incident-content">
+              <div className="incident-summary">
+                <div className="summary-icon">
+                  <AlertTriangle size={48} color="#f59e0b" />
+                </div>
+                <h3>Resolve Incident</h3>
+                <div className="incident-details-summary">
+                  <p>
+                    <strong>Type:</strong> {form.type}
+                  </p>
+                  <p>
+                    <strong>Date:</strong> {form.date}
+                  </p>
+                  <p>
+                    <strong>Description:</strong> {form.description}
+                  </p>
+                  {form.cost > 0 && (
+                    <p>
+                      <strong>Cost:</strong> {form.cost.toLocaleString()} MAD
+                    </p>
+                  )}
+                  <p>
+                    <strong>Reported by:</strong> {form.reported_by || 'System'}
+                  </p>
+                </div>
+                <div className="resolve-confirm">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={form.resolved}
+                      onChange={(e) => set('resolved', e.target.checked)}
+                    />
+                    <span>Mark this incident as resolved</span>
+                  </label>
+                  <p className="resolve-note">
+                    The vehicle will return to <strong>Active</strong> status when this incident is
+                    resolved.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="form-field">
-              <label>Incident Type</label>
-              <select value={form.type} onChange={(e) => set('type', e.target.value)}>
-                <option value="Accident">Accident</option>
-                <option value="Damage">Damage</option>
-                <option value="Traffic Violation">Traffic Violation</option>
-                <option value="Theft">Theft</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-field">
-              <label>Reported By</label>
-              <input
-                type="text"
-                value={form.reported_by}
-                onChange={(e) => set('reported_by', e.target.value)}
-                placeholder="Name of person reporting"
-              />
-            </div>
-            <div className="form-field">
-              <label>Estimated Cost (MAD)</label>
-              <input
-                type="number"
-                value={form.cost}
-                onChange={(e) => set('cost', parseInt(e.target.value) || 0)}
-                placeholder="0"
-              />
-            </div>
-          </div>
-          <div className="form-field full-width">
-            <label>Description *</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              rows={4}
-              placeholder="Detailed description of the incident..."
-            />
-          </div>
-          <div className="form-field">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={form.resolved}
-                onChange={(e) => set('resolved', e.target.checked)}
-              />
-              <span>Mark as Resolved</span>
-            </label>
-          </div>
+          )}
         </div>
 
         <div className="modal-footer">
           <button className="btn-cancel" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-save" onClick={handleSubmit} disabled={isSaving}>
-            {isSaving ? <Loader size={15} className="spinner" /> : <AlertTriangle size={15} />}
-            Report Incident
+          <button className="btn-save" onClick={handleSubmit} disabled={isSaving || isResolving}>
+            {isSaving || isResolving ? (
+              <Loader size={15} className="spinner" />
+            ) : isEditingIncident ? (
+              <CheckCircle size={15} />
+            ) : (
+              <AlertTriangle size={15} />
+            )}
+            {isEditingIncident ? 'Resolve Incident' : 'Report Incident'}
           </button>
         </div>
       </div>
@@ -455,7 +552,7 @@ const IncidentModal = ({ vehicle, onClose, onSave, isSaving }) => {
   );
 };
 
-/* ── Vehicle Card (Enhanced) ── */
+/* ── Vehicle Card ── */
 const VehicleCard = ({
   vehicle,
   onEdit,
@@ -467,9 +564,7 @@ const VehicleCard = ({
 }) => {
   const mileage = Number(vehicle.mileage) || 0;
   const sessionsCount = Number(vehicle.sessions_count) || 0;
-  const daysToMaintenance = vehicle.next_maintenance
-    ? Math.ceil((new Date(vehicle.next_maintenance) - new Date()) / 86400000)
-    : null;
+  const maintenanceCount = vehicle.maintenance_history?.length || 0;
   const daysToInsurance = vehicle.insurance_expiry
     ? Math.ceil((new Date(vehicle.insurance_expiry) - new Date()) / 86400000)
     : null;
@@ -509,28 +604,25 @@ const VehicleCard = ({
           </div>
           <div className="meta-item">
             <Shield size={13} />
-            <span>{vehicle.insurance_expiry}</span>
+            <span>{vehicle.insurance_expiry || 'N/A'}</span>
           </div>
         </div>
 
-        {(daysToMaintenance !== null || daysToInsurance !== null) && (
+        {maintenanceCount > 0 && (
+          <div className="maintenance-count-badge">
+            <Wrench size={12} />
+            <span>
+              {maintenanceCount} maintenance record{maintenanceCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        {daysToInsurance !== null && daysToInsurance <= 60 && (
           <div className="vehicle-alerts">
-            {daysToMaintenance !== null && (
-              <div className={`maintenance-alert ${daysToMaintenance <= 30 ? 'urgent' : 'normal'}`}>
-                <Wrench size={12} />
-                <span>
-                  {daysToMaintenance <= 0
-                    ? 'Maintenance overdue!'
-                    : `Service in ${daysToMaintenance} days`}
-                </span>
-              </div>
-            )}
-            {daysToInsurance !== null && daysToInsurance <= 60 && (
-              <div className={`insurance-alert ${daysToInsurance <= 30 ? 'urgent' : 'warning'}`}>
-                <Shield size={12} />
-                <span>Insurance expires in {daysToInsurance} days</span>
-              </div>
-            )}
+            <div className={`insurance-alert ${daysToInsurance <= 30 ? 'urgent' : 'warning'}`}>
+              <Shield size={12} />
+              <span>Insurance expires in {daysToInsurance} days</span>
+            </div>
           </div>
         )}
 
@@ -593,7 +685,7 @@ const VehicleCard = ({
   );
 };
 
-/* ── Vehicle Modal (Add / Edit) ── */
+/* ── Vehicle Modal ── */
 const VehicleModal = ({ vehicle, onClose, onSave, isSaving }) => {
   const [form, setForm] = useState(vehicle ? { ...vehicle } : { ...EMPTY_FORM });
   const [errors, setErrors] = useState({});
@@ -930,6 +1022,10 @@ const VehicleDetail = ({
   onAddMaintenance,
   onAddDocument,
   onAddIncident,
+  onCompleteMaintenance,
+  onResolveIncident,
+  isCompletingMaintenance,
+  isResolvingIncident,
 }) => {
   const [activeTab, setActiveTab] = useState('details');
   const mileage = Number(vehicle.mileage) || 0;
@@ -1175,37 +1271,66 @@ const VehicleDetail = ({
             <div className="maintenance-list">
               <div className="section-header">
                 <h4>Maintenance History</h4>
-                <button className="btn-add-small" onClick={() => onAddMaintenance(vehicle)}>
-                  <Plus size={14} /> Add Record
-                </button>
+                <div className="header-buttons">
+                  <button className="btn-add-small" onClick={() => onAddMaintenance(vehicle)}>
+                    <Plus size={14} /> Add Record
+                  </button>
+                  {vehicle.status === 'Maintenance' && (
+                    <button
+                      className="btn-complete-maintenance"
+                      onClick={() => onCompleteMaintenance(vehicle)}
+                      disabled={isCompletingMaintenance}
+                    >
+                      {isCompletingMaintenance ? (
+                        <Loader size={14} className="spinner" />
+                      ) : (
+                        <CheckCircle size={14} />
+                      )}
+                      Complete Maintenance
+                    </button>
+                  )}
+                </div>
               </div>
               {maintenanceHistory.length === 0 ? (
-                <div className="empty-state-small">No maintenance records yet</div>
+                <div className="empty-state-small">
+                  <Wrench size={32} />
+                  <p>No maintenance records yet</p>
+                  <small>Click "Add Record" to log maintenance</small>
+                </div>
               ) : (
-                <table className="history-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Type</th>
-                      <th>Mileage</th>
-                      <th>Cost</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {maintenanceHistory.map((record) => (
-                      <tr key={record.id}>
-                        <td>{record.date}</td>
-                        <td>{record.type}</td>
-                        <td>{(Number(record.mileage) || 0).toLocaleString()} km</td>
-                        <td>
-                          {record.cost ? `${(Number(record.cost) || 0).toLocaleString()} MAD` : '—'}
-                        </td>
-                        <td>{record.notes || '—'}</td>
-                      </tr>
+                <div className="maintenance-timeline">
+                  {maintenanceHistory
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map((record) => (
+                      <div key={record.id} className="maintenance-record">
+                        <div className="record-header">
+                          <div className="record-type">
+                            <Wrench size={14} />
+                            <span>{record.type}</span>
+                          </div>
+                          <div className="record-date">{record.date}</div>
+                        </div>
+                        <div className="record-details">
+                          <div className="record-mileage">
+                            <Gauge size={12} />
+                            <span>{Number(record.mileage).toLocaleString()} km</span>
+                          </div>
+                          {record.cost > 0 && (
+                            <div className="record-cost">
+                              <DollarSign size={12} />
+                              <span>{Number(record.cost).toLocaleString()} MAD</span>
+                            </div>
+                          )}
+                        </div>
+                        {record.notes && (
+                          <div className="record-notes">
+                            <FileText size={12} />
+                            <span>{record.notes}</span>
+                          </div>
+                        )}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                </div>
               )}
             </div>
           )}
@@ -1218,6 +1343,7 @@ const VehicleDetail = ({
                   <Plus size={14} /> Upload Document
                 </button>
               </div>
+
               {documents.length === 0 ? (
                 <div className="empty-state-small">No documents uploaded yet</div>
               ) : (
@@ -1234,7 +1360,12 @@ const VehicleDetail = ({
                           <div className="document-expiry">Expires: {doc.expiry_date}</div>
                         )}
                       </div>
-                      <button className="document-download">
+                      <button
+                        className="document-download"
+                        onClick={() => {
+                          console.log('Download document:', doc);
+                        }}
+                      >
                         <Download size={14} />
                       </button>
                     </div>
@@ -1269,14 +1400,36 @@ const VehicleDetail = ({
                       <div className="incident-description">{incident.description}</div>
                       <div className="incident-meta">
                         {incident.reported_by && <span>Reported by: {incident.reported_by}</span>}
-                        {incident.cost && (
+                        {incident.cost && incident.cost > 0 && (
                           <span>Cost: {(Number(incident.cost) || 0).toLocaleString()} MAD</span>
                         )}
                         <span className={`incident-status ${incident.resolved ? 'resolved' : ''}`}>
                           {incident.resolved ? 'Resolved' : 'Open'}
                         </span>
+                        {incident.resolved_date && (
+                          <span>Resolved on: {incident.resolved_date}</span>
+                        )}
                       </div>
                     </div>
+                    {!incident.resolved && (
+                      <button
+                        className="resolve-incident-btn"
+                        onClick={() => {
+                          console.log('Resolve button clicked for incident:', incident);
+                          console.log('Vehicle:', vehicle);
+                          onResolveIncident(vehicle, incident);
+                        }}
+                        disabled={isResolvingIncident}
+                        title="Resolve Incident"
+                      >
+                        {isResolvingIncident ? (
+                          <Loader size={16} className="spinner" />
+                        ) : (
+                          <CheckCircle size={16} />
+                        )}
+                        Resolve
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -1317,8 +1470,7 @@ const DeleteConfirm = ({ vehicle, onConfirm, onCancel, isDeleting }) => (
           Cancel
         </button>
         <button className="btn-delete" onClick={onConfirm} disabled={isDeleting}>
-          {isDeleting ? <Loader size={16} className="spinner" /> : null}
-          Delete Vehicle
+          {isDeleting ? <Loader size={16} className="spinner" /> : null} Delete Vehicle
         </button>
       </div>
     </div>
@@ -1341,6 +1493,8 @@ const Vehicles = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isCompletingMaintenance, setIsCompletingMaintenance] = useState(false);
+  const [isResolvingIncident, setIsResolvingIncident] = useState(false);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
@@ -1366,13 +1520,11 @@ const Vehicles = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch vehicles from API
   const fetchVehicles = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get('/vehicles');
       if (response.data.success) {
-        // Ensure numeric values are properly parsed
         const vehiclesData = response.data.data.map((vehicle) => ({
           ...vehicle,
           id: Number(vehicle.id),
@@ -1382,6 +1534,21 @@ const Vehicles = () => {
           purchase_price: Number(vehicle.purchase_price) || 0,
           current_value: Number(vehicle.current_value) || 0,
           fuel_efficiency: Number(vehicle.fuel_efficiency) || 0,
+          maintenance_history: Array.isArray(vehicle.maintenance_history)
+            ? vehicle.maintenance_history
+            : typeof vehicle.maintenance_history === 'string'
+              ? JSON.parse(vehicle.maintenance_history || '[]')
+              : [],
+          documents: Array.isArray(vehicle.documents)
+            ? vehicle.documents
+            : typeof vehicle.documents === 'string'
+              ? JSON.parse(vehicle.documents || '[]')
+              : [],
+          incidents: Array.isArray(vehicle.incidents)
+            ? vehicle.incidents
+            : typeof vehicle.incidents === 'string'
+              ? JSON.parse(vehicle.incidents || '[]')
+              : [],
         }));
         setVehicles(vehiclesData);
       }
@@ -1397,7 +1564,6 @@ const Vehicles = () => {
     fetchVehicles();
   }, [fetchVehicles]);
 
-  /* ── KPIs ── */
   const kpis = useMemo(() => {
     const active = vehicles.filter((v) => v.status === 'Active').length;
     const maintenance = vehicles.filter((v) => v.status === 'Maintenance').length;
@@ -1409,7 +1575,6 @@ const Vehicles = () => {
     return { total: vehicles.length, active, maintenance, inactive, totalMileage, totalValue };
   }, [vehicles]);
 
-  /* ── Filter + Sort ── */
   const filtered = useMemo(() => {
     let list = [...vehicles];
     if (search) {
@@ -1442,7 +1607,6 @@ const Vehicles = () => {
     }
   };
 
-  // Export handlers
   const handleExportExcel = async () => {
     setIsExporting(true);
     try {
@@ -1450,11 +1614,9 @@ const Vehicles = () => {
       if (filterCategory !== 'All') params.append('category', filterCategory);
       if (filterStatus !== 'All') params.append('status', filterStatus);
       if (search) params.append('search', search);
-
       const response = await axios.get(`/vehicles/export/excel?${params.toString()}`, {
         responseType: 'blob',
       });
-
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -1463,7 +1625,6 @@ const Vehicles = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-
       showToast('Excel export completed successfully');
     } catch (error) {
       console.error('Export failed:', error);
@@ -1480,11 +1641,9 @@ const Vehicles = () => {
       if (filterCategory !== 'All') params.append('category', filterCategory);
       if (filterStatus !== 'All') params.append('status', filterStatus);
       if (search) params.append('search', search);
-
       const response = await axios.get(`/vehicles/export/pdf?${params.toString()}`, {
         responseType: 'blob',
       });
-
       const url = window.URL.createObjectURL(
         new Blob([response.data], { type: 'application/pdf' }),
       );
@@ -1495,7 +1654,6 @@ const Vehicles = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-
       showToast('PDF export completed successfully');
     } catch (error) {
       console.error('Export failed:', error);
@@ -1505,22 +1663,15 @@ const Vehicles = () => {
     }
   };
 
-  /* ── CRUD ── */
   const handleSave = async (form) => {
     setIsSaving(true);
     const isNew = !form.id;
-
     try {
       let response;
-      if (isNew) {
-        response = await axios.post('/vehicles', form);
-      } else {
-        response = await axios.put(`/vehicles/${form.id}`, form);
-      }
-
+      if (isNew) response = await axios.post('/vehicles', form);
+      else response = await axios.put(`/vehicles/${form.id}`, form);
       if (response.data.success) {
         await fetchVehicles();
-
         if (isNew) {
           addNotification(
             'New Vehicle Added',
@@ -1528,9 +1679,7 @@ const Vehicles = () => {
             'system',
           );
           showToast('Vehicle added successfully');
-        } else {
-          showToast('Vehicle updated successfully');
-        }
+        } else showToast('Vehicle updated successfully');
       }
     } catch (error) {
       console.error('Failed to save vehicle:', error);
@@ -1544,22 +1693,17 @@ const Vehicles = () => {
 
   const handleDelete = async (id) => {
     setIsDeleting(true);
-
     try {
       const response = await axios.delete(`/vehicles/${id}`);
-
       if (response.data.success) {
         const deletedVehicle = vehicles.find((v) => v.id === id);
         await fetchVehicles();
-
-        if (deletedVehicle) {
+        if (deletedVehicle)
           addNotification(
             'Vehicle Removed',
             `${deletedVehicle.brand} ${deletedVehicle.model} (${deletedVehicle.plate}) has been removed from the fleet`,
             'system',
           );
-        }
-
         showToast('Vehicle removed from fleet', 'error');
       }
     } catch (error) {
@@ -1575,14 +1719,26 @@ const Vehicles = () => {
   const handleAddMaintenance = async (vehicle, record) => {
     setIsMaintenanceSaving(true);
     try {
-      const response = await axios.post(`/vehicles/${vehicle.id}/maintenance`, record);
+      const maintenanceData = {
+        date: record.date,
+        type: record.type,
+        mileage: parseInt(record.mileage) || 0,
+        cost: parseInt(record.cost) || 0,
+        notes: record.notes || '',
+      };
+      const response = await axios.post(`/vehicles/${vehicle.id}/maintenance`, maintenanceData);
       if (response.data.success) {
         await fetchVehicles();
-        showToast('Maintenance record added');
+        showToast('Maintenance record added successfully');
+        addNotification(
+          'Maintenance Added',
+          `${record.type} recorded for ${vehicle.brand} ${vehicle.model} at ${record.mileage} km`,
+          'system',
+        );
       }
     } catch (error) {
       console.error('Failed to add maintenance:', error);
-      showToast('Failed to add maintenance record', 'error');
+      showToast(error.response?.data?.message || 'Failed to add maintenance record', 'error');
     } finally {
       setIsMaintenanceSaving(false);
       setMaintenanceTarget(null);
@@ -1609,21 +1765,142 @@ const Vehicles = () => {
   const handleAddIncident = async (vehicle, incident) => {
     setIsIncidentSaving(true);
     try {
-      const response = await axios.post(`/vehicles/${vehicle.id}/incidents`, incident);
+      const incidentData = {
+        date: incident.date,
+        type: incident.type,
+        description: incident.description,
+        cost: incident.cost || 0,
+        reported_by: incident.reported_by || 'System',
+        resolved: incident.resolved || false,
+      };
+
+      console.log('Sending incident data:', incidentData);
+      console.log('For vehicle ID:', vehicle.id);
+
+      const response = await axios.post(`/vehicles/${vehicle.id}/incidents`, incidentData);
+
+      console.log('Add incident response:', response.data);
+
       if (response.data.success) {
-        await fetchVehicles();
-        showToast('Incident reported successfully');
+        const updatedVehicle = response.data.data;
+
+        // Update the vehicles list
+        setVehicles((prevVehicles) =>
+          prevVehicles.map((v) => (v.id === vehicle.id ? updatedVehicle : v)),
+        );
+
+        // If detail modal is open, update it
+        if (detailVehicle && detailVehicle.id === vehicle.id) {
+          setDetailVehicle(updatedVehicle);
+        }
+
+        showToast(response.data.message);
+        addNotification(
+          'Incident Reported',
+          `${incident.type} incident reported for ${vehicle.brand} ${vehicle.model}. Status: ${updatedVehicle.status}`,
+          'alert',
+        );
       }
     } catch (error) {
       console.error('Failed to report incident:', error);
-      showToast('Failed to report incident', 'error');
+      console.error('Error response:', error.response?.data);
+      showToast(error.response?.data?.message || 'Failed to report incident', 'error');
     } finally {
       setIsIncidentSaving(false);
       setIncidentTarget(null);
     }
   };
 
-  // Loading state
+  const handleCompleteMaintenance = async (vehicle) => {
+    if (
+      !window.confirm(
+        `Complete maintenance for ${vehicle.brand} ${vehicle.model}? The vehicle will be set to Active status.`,
+      )
+    )
+      return;
+    setIsCompletingMaintenance(true);
+    try {
+      const completionData = {
+        completion_date: new Date().toISOString().split('T')[0],
+        notes: 'Maintenance completed',
+        cost: 0,
+      };
+      const response = await axios.post(
+        `/vehicles/${vehicle.id}/complete-maintenance`,
+        completionData,
+      );
+      if (response.data.success) {
+        await fetchVehicles();
+        if (detailVehicle && detailVehicle.id === vehicle.id) setDetailVehicle(response.data.data);
+        showToast('Maintenance completed and vehicle returned to active status');
+        addNotification(
+          'Maintenance Completed',
+          `${vehicle.brand} ${vehicle.model} is now back in active service`,
+          'system',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to complete maintenance:', error);
+      showToast(error.response?.data?.message || 'Failed to complete maintenance', 'error');
+    } finally {
+      setIsCompletingMaintenance(false);
+    }
+  };
+
+  // Handle resolve incident
+  const handleResolveIncident = async (vehicle, incident) => {
+    if (
+      !window.confirm(
+        `Resolve this ${incident.type} incident for ${vehicle.brand} ${vehicle.model}? The vehicle will return to Active status.`,
+      )
+    ) {
+      return;
+    }
+
+    setIsResolvingIncident(true);
+    try {
+      const resolveData = {
+        incident_id: incident.id,
+        resolved_by: 'System',
+      };
+
+      console.log('Resolving incident with data:', resolveData);
+      console.log('Vehicle ID:', vehicle.id);
+
+      const response = await axios.post(`/vehicles/${vehicle.id}/resolve-incident`, resolveData);
+
+      console.log('Resolve incident response:', response.data);
+
+      if (response.data.success) {
+        // Update the vehicle in the local state immediately
+        const updatedVehicle = response.data.data;
+
+        // Update the vehicles list
+        setVehicles((prevVehicles) =>
+          prevVehicles.map((v) => (v.id === vehicle.id ? updatedVehicle : v)),
+        );
+
+        // If the detail modal is open, update it
+        if (detailVehicle && detailVehicle.id === vehicle.id) {
+          setDetailVehicle(updatedVehicle);
+        }
+
+        showToast(response.data.message);
+        addNotification(
+          'Incident Resolved',
+          `${incident.type} incident for ${vehicle.brand} ${vehicle.model} has been resolved. Vehicle is now ${updatedVehicle.status}.`,
+          'system',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to resolve incident:', error);
+      console.error('Error response:', error.response?.data);
+      showToast(error.response?.data?.message || 'Failed to resolve incident', 'error');
+    } finally {
+      setIsResolvingIncident(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="vehicles-loading">
@@ -1646,6 +1923,16 @@ const Vehicles = () => {
             <p>Manage your driving school vehicles, maintenance, insurance, and documents</p>
           </div>
           <div className="fleet-summary-card">
+            <div className="header-actions">
+              <button
+                className="refresh-btn"
+                onClick={() => fetchVehicles()}
+                disabled={loading}
+                title="Refresh vehicles"
+              >
+                <RefreshCw size={18} className={loading ? 'spinning' : ''} /> Refresh
+              </button>
+            </div>
             <div className="fleet-stat">
               <span className="stat-num">{kpis.active}</span>
               <span className="stat-lbl">Active</span>
@@ -1664,7 +1951,6 @@ const Vehicles = () => {
         </div>
       </div>
 
-      {/* KPI Grid */}
       <div className="kpi-grid">
         {[
           { label: 'Total Vehicles', value: kpis.total, IconComp: Truck, trend: 'fleet size' },
@@ -1760,12 +2046,10 @@ const Vehicles = () => {
           ))}
         </select>
         <button className="btn-export" onClick={handleExportExcel} disabled={isExporting}>
-          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />}
-          Excel
+          {isExporting ? <Loader size={15} className="spinner" /> : <Download size={15} />} Excel
         </button>
         <button className="btn-export" onClick={handleExportPdf} disabled={isExporting}>
-          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />}
-          PDF
+          {isExporting ? <Loader size={15} className="spinner" /> : <FileText size={15} />} PDF
         </button>
         <button
           className="btn-add"
@@ -1866,7 +2150,7 @@ const Vehicles = () => {
                       <td>
                         <StatusBadge status={v.status} />
                       </td>
-                      <td className="date-text">{v.insurance_expiry}</td>
+                      <td className="date-text">{v.insurance_expiry || '—'}</td>
                       <td>
                         <div className="action-buttons" onClick={(e) => e.stopPropagation()}>
                           <button className="action-btn" onClick={() => setDetailVehicle(v)}>
@@ -1903,7 +2187,6 @@ const Vehicles = () => {
         </div>
       )}
 
-      {/* Modals */}
       {(modal === 'add' || modal === 'edit') && (
         <VehicleModal
           vehicle={modal === 'edit' ? editVehicle : null}
@@ -1931,6 +2214,10 @@ const Vehicles = () => {
           onAddMaintenance={setMaintenanceTarget}
           onAddDocument={setDocumentTarget}
           onAddIncident={setIncidentTarget}
+          onCompleteMaintenance={handleCompleteMaintenance}
+          onResolveIncident={handleResolveIncident}
+          isCompletingMaintenance={isCompletingMaintenance}
+          isResolvingIncident={isResolvingIncident}
         />
       )}
       {deleteTarget && (
