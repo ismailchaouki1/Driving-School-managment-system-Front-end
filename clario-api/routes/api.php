@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\InstructorController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\PaymentController;  // ← ADD THIS
@@ -13,6 +14,10 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/login', [AuthController::class, 'login']);
+
+Route::post('/password/email', [PasswordResetController::class, 'sendResetLink']);
+Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
+Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -76,5 +81,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistics/session-analytics', [StatisticsController::class, 'getSessionAnalytics']);
     Route::get('/statistics/student-registrations', [StatisticsController::class, 'getStudentRegistrations']);
     Route::get('/statistics/export-excel', [StatisticsController::class, 'exportExcel']);;
-     Route::get('/statistics/export-pdf', [StatisticsController::class, 'exportPdf']);
+    Route::get('/statistics/export-pdf', [StatisticsController::class, 'exportPdf']);
+
+
+
+
 });
