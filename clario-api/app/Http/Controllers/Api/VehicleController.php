@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Exports\VehiclesExport;
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
+use DateTime;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class VehicleController extends Controller
@@ -171,49 +174,135 @@ class VehicleController extends Controller
         }
     }
 
-    /**
-     * Add maintenance record to vehicle
-     */
-    public function addMaintenance(Request $request, $id)
-    {
-        try {
-            $vehicle = Vehicle::findOrFail($id);
+  /**
+ * Add maintenance record to vehicle
+ */
+public function addMaintenance(Request $request, $id)
+{
+    DB::beginTransaction();
 
-            $validated = $request->validate([
-                'date' => 'required|date',
-                'type' => 'required|string',
-                'mileage' => 'required|integer|min:0',
-                'cost' => 'nullable|numeric|min:0',
-                'notes' => 'nullable|string',
-            ]);
+    try {
+        $vehicle = Vehicle::findOrFail($id);
 
-            $maintenanceHistory = $vehicle->maintenance_history ?? [];
-            $newRecord = [
-                'id' => time(),
-                'date' => $validated['date'],
-                'type' => $validated['type'],
-                'mileage' => $validated['mileage'],
-                'cost' => $validated['cost'] ?? 0,
-                'notes' => $validated['notes'] ?? '',
-            ];
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'type' => 'required|string',
+            'mileage' => 'required|integer|min:0',
+            'cost' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
 
-            $maintenanceHistory[] = $newRecord;
-            $vehicle->maintenance_history = $maintenanceHistory;
-            $vehicle->last_maintenance = $validated['date'];
-            $vehicle->save();
+        // Add maintenance record to vehicle
+        $maintenanceHistory = $vehicle->maintenance_history ?? [];
+        $newRecord = [
+            'id' => time(),
+            'date' => $validated['date'],
+            'type' => $validated['type'],
+            'mileage' => $validated['mileage'],
+            'cost' => $validated['cost'] ?? 0,
+            'notes' => $validated['notes'] ?? '',
+        ];
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Maintenance record added successfully',
-                'data' => $vehicle
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to add maintenance record: ' . $e->getMessage()
-            ], 500);
+        $maintenanceHistory[] = $newRecord;
+        $vehicle->maintenance_history = $maintenanceHistory;
+        $vehicle->last_maintenance = $validated['date'];
+
+        // Set next maintenance date based on maintenance type
+        $nextMaintenanceDate = $this->calculateNextMaintenanceDate($validated['date'], $validated['type']);
+        $vehicle->next_maintenance = $nextMaintenanceDate;
+
+        // Always set vehicle to Maintenance status when a maintenance record is added.
+        // Use the completeMaintenance endpoint to return the vehicle to Active status.
+        // Optionally controlled by the frontend's set_maintenance_status flag.
+        if ($request->input('set_maintenance_status', true)) {
+            $vehicle->status = 'Maintenance';
         }
+
+        // Update mileage
+        if ($validated['mileage'] > $vehicle->mileage) {
+            $vehicle->mileage = $validated['mileage'];
+        }
+
+        $vehicle->save();
+
+        // CREATE PAYMENT RECORD FOR MAINTENANCE COST
+        if (($validated['cost'] ?? 0) > 0) {
+            $paymentData = [
+                'reference' => $this->generateUniquePaymentReference(),
+                'vehicle_id' => $vehicle->id,
+                'student_name' => 'MAINTENANCE',
+                'student_cin' => 'SYS-MAINT',
+                'category' => $vehicle->category,
+                'payment_category' => 'vehicle_maintenance',
+                'amount_total' => $validated['cost'],
+                'amount_paid' => $validated['cost'],
+                'amount_remaining' => 0,
+                'status' => 'Paid',
+                'method' => 'Cash',
+                'type' => 'Maintenance',
+                'date' => $validated['date'],
+                'due_date' => $validated['date'],
+                'instructor' => $vehicle->assigned_instructor ?? 'System',
+                'notes' => 'Maintenance: ' . $validated['type'],
+                'receipt_number' => 'MAINT-' . str_pad($vehicle->id, 6, '0', STR_PAD_LEFT),
+                'payment_reference' => 'MAINT-' . $vehicle->id . '-' . time(),
+            ];
+            Payment::create($paymentData);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance record added successfully. Vehicle status: ' . $vehicle->status,
+            'data' => $vehicle
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to add maintenance record: ' . $e->getMessage()
+        ], 500);
     }
+}
+
+/**
+ * Calculate next maintenance date based on maintenance type
+ */
+private function calculateNextMaintenanceDate($currentDate, $maintenanceType)
+{
+    $date = new DateTime($currentDate);
+
+    switch ($maintenanceType) {
+        case 'Oil Change':
+            $date->modify('+3 months');
+            break;
+        case 'Tire Rotation':
+            $date->modify('+6 months');
+            break;
+        case 'Brake Service':
+            $date->modify('+12 months');
+            break;
+        case 'Engine Tune-up':
+            $date->modify('+12 months');
+            break;
+        case 'Transmission Service':
+            $date->modify('+24 months');
+            break;
+        case 'Battery Replacement':
+            $date->modify('+36 months');
+            break;
+        case 'Inspection':
+            $date->modify('+12 months');
+            break;
+        default:
+            $date->modify('+3 months');
+            break;
+    }
+
+    return $date->format('Y-m-d');
+}
 
     /**
      * Add document to vehicle
@@ -257,11 +346,10 @@ class VehicleController extends Controller
         }
     }
 
-    /**
-     * Add incident report to vehicle
-     */
-    public function addIncident(Request $request, $id)
+   public function addIncident(Request $request, $id)
     {
+        DB::beginTransaction();
+
         try {
             $vehicle = Vehicle::findOrFail($id);
 
@@ -287,20 +375,134 @@ class VehicleController extends Controller
 
             $incidents[] = $newIncident;
             $vehicle->incidents = $incidents;
+
+            // Set vehicle status to Inactive for certain incident types
+            $incidentTypesThatRequireInactive = ['Accident', 'Damage', 'Theft'];
+
+            if (in_array($validated['type'], $incidentTypesThatRequireInactive)) {
+                $vehicle->status = 'Inactive';
+            } else {
+                $vehicle->status = 'Maintenance';
+            }
+
             $vehicle->save();
+
+            // Create payment record if cost > 0
+            if (($validated['cost'] ?? 0) > 0) {
+                $paymentData = [
+                    'reference' => $this->generateUniquePaymentReference(),
+                    'vehicle_id' => $vehicle->id,
+                    'student_name' => 'INCIDENT',
+                    'student_cin' => 'SYS-INCID',
+                    'category' => $vehicle->category,
+                    'payment_category' => 'vehicle_incident',
+                    'amount_total' => $validated['cost'],
+                    'amount_paid' => $validated['cost'],
+                    'amount_remaining' => 0,
+                    'status' => 'Paid',
+                    'method' => 'Cash',
+                    'type' => 'Incident',
+                    'date' => $validated['date'],
+                    'due_date' => $validated['date'],
+                    'instructor' => $vehicle->assigned_instructor ?? 'System',
+                    'notes' => 'Incident: ' . $validated['type'] . ' - ' . $validated['description'],
+                    'receipt_number' => 'INCID-' . str_pad($vehicle->id, 6, '0', STR_PAD_LEFT),
+                    'payment_reference' => 'INCID-' . $vehicle->id . '-' . time(),
+                ];
+                Payment::create($paymentData);
+            }
+
+            DB::commit();
+
+            $updatedVehicle = Vehicle::find($vehicle->id);
+            $updatedVehicle->incidents = array_values($updatedVehicle->incidents ?? []);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Incident reported successfully',
-                'data' => $vehicle
+                'message' => 'Incident reported successfully. Vehicle status: ' . $vehicle->status,
+                'data' => $updatedVehicle,
+                'payment_created' => ($validated['cost'] ?? 0) > 0
             ]);
+
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to report incident: ' . $e->getMessage()
             ], 500);
         }
     }
+
+    /**
+ * Resolve an incident and set vehicle back to Active
+ */
+public function resolveIncident(Request $request, $id)
+{
+    DB::beginTransaction();
+
+    try {
+        $vehicle = Vehicle::findOrFail($id);
+        $incidentId = $request->input('incident_id');
+
+        $incidents = $vehicle->incidents ?? [];
+        $incidentFound = false;
+
+        // Find and update the incident
+        foreach ($incidents as &$incident) {
+            if ($incident['id'] == $incidentId) {
+                $incident['resolved'] = true;
+                $incident['resolved_date'] = now()->toDateString();
+                $incident['resolved_by'] = $request->input('resolved_by', 'System');
+                $incidentFound = true;
+                break;
+            }
+        }
+
+        if (!$incidentFound) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Incident not found'
+            ], 404);
+        }
+
+        // Check if all incidents are resolved
+        $allResolved = true;
+        foreach ($incidents as $incident) {
+            if (!$incident['resolved']) {
+                $allResolved = false;
+                break;
+            }
+        }
+
+        // If all incidents are resolved, set vehicle status back to Active
+        if ($allResolved) {
+            $vehicle->status = 'Active';
+        }
+
+        $vehicle->incidents = $incidents;
+        $vehicle->save();
+
+        DB::commit();
+
+        // Refresh vehicle data
+        $updatedVehicle = Vehicle::find($vehicle->id);
+        $updatedVehicle->incidents = array_values($updatedVehicle->incidents ?? []);
+
+        return response()->json([
+            'success' => true,
+            'message' => $allResolved ? 'Incident resolved. Vehicle is now Active.' : 'Incident marked as resolved.',
+            'data' => $updatedVehicle
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to resolve incident: ' . $e->getMessage()
+        ], 500);
+    }
+}
     /**
      * Export vehicles to Excel
      */
@@ -467,4 +669,155 @@ class VehicleController extends Controller
             ], 500);
         }
     }
+    /**
+ * Generate unique payment reference
+ */
+private function generateUniquePaymentReference()
+{
+    $year = date('Y');
+    $maxAttempts = 10;
+
+    for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+        $lastPayment = Payment::orderBy('id', 'desc')->first();
+        $nextNumber = ($lastPayment ? $lastPayment->id + 1 : 1);
+        $reference = 'PAY-' . $year . '-' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+
+        if (!Payment::where('reference', $reference)->exists()) {
+            return $reference;
+        }
+
+        $randomRef = 'PAY-' . $year . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
+        if (!Payment::where('reference', $randomRef)->exists()) {
+            return $randomRef;
+        }
+    }
+
+    return 'PAY-' . $year . '-' . time();
+}
+/**
+ * Check and update vehicle status based on maintenance schedule
+ */
+public function updateMaintenanceStatus()
+{
+    try {
+        $today = date('Y-m-d');
+        $updatedVehicles = [];
+
+        // Get all vehicles
+        $vehicles = Vehicle::all();
+
+        foreach ($vehicles as $vehicle) {
+            $oldStatus = $vehicle->status;
+            $newStatus = $vehicle->status;
+
+            // Check if vehicle has a next_maintenance date
+            if ($vehicle->next_maintenance) {
+                $maintenanceDate = $vehicle->next_maintenance;
+                $daysUntilMaintenance = ceil((strtotime($maintenanceDate) - strtotime($today)) / 86400);
+
+                // If maintenance date is today or passed, set to Maintenance
+                if ($daysUntilMaintenance <= 0 && $vehicle->status === 'Active') {
+                    $newStatus = 'Maintenance';
+                }
+                // If maintenance is overdue and already in maintenance, keep it
+                elseif ($daysUntilMaintenance <= 0 && $vehicle->status === 'Maintenance') {
+                    $newStatus = 'Maintenance';
+                }
+                // If maintenance is completed (has last_maintenance after next_maintenance)
+                elseif ($vehicle->last_maintenance && $vehicle->last_maintenance >= $vehicle->next_maintenance) {
+                    $newStatus = 'Active';
+                }
+            }
+
+            // Update status if changed
+            if ($newStatus !== $oldStatus) {
+                $vehicle->status = $newStatus;
+                $vehicle->save();
+                $updatedVehicles[] = [
+                    'id' => $vehicle->id,
+                    'name' => $vehicle->brand . ' ' . $vehicle->model,
+                    'old_status' => $oldStatus,
+                    'new_status' => $newStatus,
+                    'next_maintenance' => $vehicle->next_maintenance
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle maintenance status updated',
+            'data' => [
+                'updated_count' => count($updatedVehicles),
+                'updated_vehicles' => $updatedVehicles
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update maintenance status: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Mark maintenance as completed and return vehicle to active
+ */
+public function completeMaintenance(Request $request, $id)
+{
+    DB::beginTransaction();
+
+    try {
+        $vehicle = Vehicle::findOrFail($id);
+
+        $validated = $request->validate([
+            'completion_date' => 'required|date',
+            'notes' => 'nullable|string',
+            'cost' => 'nullable|numeric|min:0',
+        ]);
+
+        // Update vehicle status to Active
+        $vehicle->status = 'Active';
+
+        // Update last_maintenance date
+        $vehicle->last_maintenance = $validated['completion_date'];
+
+        // Set next maintenance date (e.g., 3 months or 5000km from now)
+        $nextMaintenanceDate = date('Y-m-d', strtotime($validated['completion_date'] . ' + 3 months'));
+        $vehicle->next_maintenance = $nextMaintenanceDate;
+
+        $vehicle->save();
+
+        // Add completion record to maintenance history
+        $maintenanceHistory = $vehicle->maintenance_history ?? [];
+        $completionRecord = [
+            'id' => time(),
+            'date' => $validated['completion_date'],
+            'type' => 'Maintenance Completed',
+            'mileage' => $vehicle->mileage,
+            'cost' => $validated['cost'] ?? 0,
+            'notes' => 'Maintenance completed: ' . ($validated['notes'] ?? 'Vehicle returned to active status'),
+            'status_change' => 'Maintenance → Active'
+        ];
+
+        $maintenanceHistory[] = $completionRecord;
+        $vehicle->maintenance_history = $maintenanceHistory;
+        $vehicle->save();
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Maintenance completed and vehicle returned to active status',
+            'data' => $vehicle
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to complete maintenance: ' . $e->getMessage()
+        ], 500);
+    }
+}
 }

@@ -13,16 +13,18 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         try {
-            $payments = DB::table('payments')
-                ->orderBy('date', 'desc')
+            // Use Eloquent instead of DB facade to get proper collections
+            $payments = Payment::orderBy('date', 'desc')
                 ->orderBy('created_at', 'desc')
                 ->get();
+
+            // Calculate statistics including vehicle expenses
+            $totalRevenue = Payment::revenue()->sum('amount_paid');
+            $totalExpenses = Payment::vehicleExpenses()->sum('amount_paid');
+            $netRevenue = $totalRevenue - $totalExpenses;
 
             Log::info('Payments retrieved: ' . $payments->count());
 
@@ -30,13 +32,59 @@ class PaymentController extends Controller
                 'success' => true,
                 'data' => $payments,
                 'message' => 'Payments retrieved successfully',
-                'count' => $payments->count()
+                'count' => $payments->count(),
+                'summary' => [
+                    'total_revenue' => $totalRevenue,
+                    'total_expenses' => $totalExpenses,
+                    'net_revenue' => $netRevenue,
+                ]
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to load payments: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load payments: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    // Add a new endpoint for expense statistics
+    public function getExpenseStats()
+    {
+        try {
+            $maintenanceExpenses = Payment::where('payment_category', 'vehicle_maintenance')
+                ->select(DB::raw('SUM(amount_paid) as total, COUNT(*) as count, type'))
+                ->groupBy('type')
+                ->get();
+
+            $incidentExpenses = Payment::where('payment_category', 'vehicle_incident')
+                ->select(DB::raw('SUM(amount_paid) as total, COUNT(*) as count, type'))
+                ->groupBy('type')
+                ->get();
+
+            $monthlyExpenses = Payment::whereIn('payment_category', ['vehicle_maintenance', 'vehicle_incident'])
+                ->select(DB::raw('SUM(amount_paid) as total, DATE_FORMAT(date, "%Y-%m") as month'))
+                ->groupBy('month')
+                ->orderBy('month', 'desc')
+                ->limit(12)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'maintenance_expenses' => $maintenanceExpenses,
+                    'incident_expenses' => $incidentExpenses,
+                    'monthly_expenses' => $monthlyExpenses,
+                    'total_maintenance' => $maintenanceExpenses->sum('total'),
+                    'total_incidents' => $incidentExpenses->sum('total'),
+                    'total_expenses' => $maintenanceExpenses->sum('total') + $incidentExpenses->sum('total'),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get expense stats: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->string('reference')->unique();
-             $table->string('method')->default('Cash')->after('status');
+
             // Foreign keys (nullable for flexibility)
             $table->foreignId('student_id')->nullable()->constrained('students')->onDelete('set null');
             $table->foreignId('session_id')->nullable()->constrained('driving_sessions')->onDelete('set null');
@@ -25,7 +25,7 @@ return new class extends Migration
 
             // Payment classification
             $table->string('category');
-            $table->enum('payment_category', ['registration', 'session', 'exam', 'vehicle_maintenance', 'other'])->default('registration');
+            $table->enum('payment_category', ['registration', 'session', 'exam', 'vehicle_maintenance', 'vehicle_incident'])->default('registration');
 
             // Amount fields
             $table->decimal('amount_total', 10, 2);
@@ -34,7 +34,7 @@ return new class extends Migration
 
             // Status and method
             $table->enum('status', ['Paid', 'Partial', 'Pending', 'Overdue'])->default('Pending');
-            $table->string('method');
+            $table->string('method')->default('Cash');
             $table->string('type');
 
             // Dates
@@ -62,8 +62,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('payments');
-        Schema::table('payments', function (Blueprint $table) {
-            $table->dropColumn('method');
-        });
     }
 };

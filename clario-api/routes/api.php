@@ -39,7 +39,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/vehicles/export/csv', [VehicleController::class, 'exportCsv']);
     Route::get('/vehicles/export/pdf', [VehicleController::class, 'exportPdf']);
     Route::get('/vehicles/{id}/export', [VehicleController::class, 'exportVehiclePdf']);
+    // Update maintenance status for all vehicles (can be called by cron job)
+    Route::get('/vehicles/update-maintenance-status', [VehicleController::class, 'updateMaintenanceStatus']);
 
+    // Complete maintenance for a specific vehicle
+    Route::post('/vehicles/{id}/complete-maintenance', [VehicleController::class, 'completeMaintenance']);
+    Route::post('/vehicles/{id}/resolve-incident', [VehicleController::class, 'resolveIncident']);
     // ==================== SESSION ROUTES ====================
     Route::apiResource('sessions', SessionController::class);
     Route::get('/sessions/calendar', [SessionController::class, 'getCalendarSessions']);

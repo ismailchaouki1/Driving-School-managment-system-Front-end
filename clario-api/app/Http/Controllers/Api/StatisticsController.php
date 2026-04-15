@@ -59,8 +59,11 @@ class StatisticsController extends Controller
             // Calculate quick stats
             $quickStats = $this->calculateQuickStats($students, $instructors, $sessions);
 
-            // Get revenue data by month
+            // Get revenue data by month (Registration, Session, Exam)
             $revenueData = $this->getRevenueByMonth($payments, $currentYear);
+
+            // Get expenses data by month (Maintenance, Incident)
+            $expensesData = $this->getExpensesByMonth($payments, $currentYear);
 
             // Get student registrations by month
             $registrationsData = $this->getRegistrationsByMonth($students, $currentYear);
@@ -89,6 +92,7 @@ class StatisticsController extends Controller
                     'kpis' => $kpis,
                     'quick_stats' => $quickStats,
                     'revenue_data' => $revenueData,
+                    'expenses_data' => $expensesData,
                     'registrations_data' => $registrationsData,
                     'session_data' => $sessionData,
                     'payment_methods' => $paymentMethods,
@@ -111,6 +115,56 @@ class StatisticsController extends Controller
                 'message' => 'Failed to load statistics: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Get expenses data by month (Maintenance & Incident)
+     */
+    private function getExpensesByMonth($payments, $currentYear)
+    {
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $maintenanceExpenses = array_fill(0, 12, 0);
+        $incidentExpenses = array_fill(0, 12, 0);
+
+        foreach ($payments as $payment) {
+            $date = date('n', strtotime($payment->date));
+            $year = date('Y', strtotime($payment->date));
+            $month = (int)$date - 1;
+            $amount = (float)$payment->amount_paid;
+
+            if ($year == $currentYear) {
+                if ($payment->type === 'Maintenance') {
+                    $maintenanceExpenses[$month] += $amount;
+                } elseif ($payment->type === 'Incident') {
+                    $incidentExpenses[$month] += $amount;
+                }
+            }
+        }
+
+        $datasets = [];
+
+        // Add maintenance expenses dataset if any
+        if (array_sum($maintenanceExpenses) > 0) {
+            $datasets[] = [
+                'name' => 'Maintenance',
+                'data' => $maintenanceExpenses,
+                'color' => '#f59e0b'
+            ];
+        }
+
+        // Add incident expenses dataset if any
+        if (array_sum($incidentExpenses) > 0) {
+            $datasets[] = [
+                'name' => 'Incidents',
+                'data' => $incidentExpenses,
+                'color' => '#ef4444'
+            ];
+        }
+
+        return [
+            'labels' => $months,
+            'datasets' => $datasets
+        ];
     }
 
     /**
@@ -258,7 +312,15 @@ class StatisticsController extends Controller
             })->get();
 
             // Calculate statistics for the report
-            $totalRevenue = $payments->sum('amount_paid');
+            $totalRevenue = $payments->filter(function($payment) {
+                return in_array($payment->type, ['Registration', 'Session', 'Exam']);
+            })->sum('amount_paid');
+
+            $totalExpenses = $payments->filter(function($payment) {
+                return in_array($payment->type, ['Maintenance', 'Incident']);
+            })->sum('amount_paid');
+
+            $netRevenue = $totalRevenue - $totalExpenses;
             $totalStudents = $students->count();
             $totalSessions = $sessions->count();
             $completedSessions = $sessions->where('status', 'Completed')->count();
@@ -268,6 +330,10 @@ class StatisticsController extends Controller
             $registrationRevenue = $payments->where('type', 'Registration')->sum('amount_paid');
             $sessionRevenue = $payments->where('type', 'Session')->sum('amount_paid');
             $examRevenue = $payments->where('type', 'Exam')->sum('amount_paid');
+
+            // Expenses by type
+            $maintenanceExpenses = $payments->where('type', 'Maintenance')->sum('amount_paid');
+            $incidentExpenses = $payments->where('type', 'Incident')->sum('amount_paid');
 
             // Payment methods distribution
             $paymentMethods = [];
@@ -293,11 +359,17 @@ class StatisticsController extends Controller
             // Monthly data
             $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             $monthlyRevenue = array_fill(0, 12, 0);
+            $monthlyExpenses = array_fill(0, 12, 0);
+
             foreach ($payments as $payment) {
                 $month = date('n', strtotime($payment->date)) - 1;
                 $year = date('Y', strtotime($payment->date));
                 if ($year == date('Y')) {
-                    $monthlyRevenue[$month] += $payment->amount_paid;
+                    if (in_array($payment->type, ['Registration', 'Session', 'Exam'])) {
+                        $monthlyRevenue[$month] += $payment->amount_paid;
+                    } elseif (in_array($payment->type, ['Maintenance', 'Incident'])) {
+                        $monthlyExpenses[$month] += $payment->amount_paid;
+                    }
                 }
             }
 
@@ -323,15 +395,20 @@ class StatisticsController extends Controller
                 'sessions' => $sessions,
                 'payments' => $payments,
                 'totalRevenue' => $totalRevenue,
+                'totalExpenses' => $totalExpenses,
+                'netRevenue' => $netRevenue,
                 'totalStudents' => $totalStudents,
                 'totalSessions' => $totalSessions,
                 'completionRate' => $completionRate,
                 'registrationRevenue' => $registrationRevenue,
                 'sessionRevenue' => $sessionRevenue,
                 'examRevenue' => $examRevenue,
+                'maintenanceExpenses' => $maintenanceExpenses,
+                'incidentExpenses' => $incidentExpenses,
                 'paymentMethods' => $paymentMethods,
                 'categoryDistribution' => $categoryDistribution,
                 'monthlyRevenue' => $monthlyRevenue,
+                'monthlyExpenses' => $monthlyExpenses,
                 'months' => $months,
                 'topInstructors' => $topInstructors,
                 'recentTransactions' => $recentTransactions,
@@ -382,7 +459,15 @@ class StatisticsController extends Controller
             })->get();
 
             // Calculate statistics
-            $totalRevenue = $payments->sum('amount_paid');
+            $totalRevenue = $payments->filter(function($payment) {
+                return in_array($payment->type, ['Registration', 'Session', 'Exam']);
+            })->sum('amount_paid');
+
+            $totalExpenses = $payments->filter(function($payment) {
+                return in_array($payment->type, ['Maintenance', 'Incident']);
+            })->sum('amount_paid');
+
+            $netRevenue = $totalRevenue - $totalExpenses;
             $totalStudents = $students->count();
             $totalSessions = $sessions->count();
             $completedSessions = $sessions->where('status', 'Completed')->count();
@@ -392,6 +477,10 @@ class StatisticsController extends Controller
             $registrationRevenue = $payments->where('type', 'Registration')->sum('amount_paid');
             $sessionRevenue = $payments->where('type', 'Session')->sum('amount_paid');
             $examRevenue = $payments->where('type', 'Exam')->sum('amount_paid');
+
+            // Expenses by type
+            $maintenanceExpenses = $payments->where('type', 'Maintenance')->sum('amount_paid');
+            $incidentExpenses = $payments->where('type', 'Incident')->sum('amount_paid');
 
             // Payment methods distribution
             $paymentMethods = [];
@@ -417,11 +506,17 @@ class StatisticsController extends Controller
             // Monthly revenue data for charts
             $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             $monthlyRevenue = array_fill(0, 12, 0);
+            $monthlyExpenses = array_fill(0, 12, 0);
+
             foreach ($payments as $payment) {
                 $month = date('n', strtotime($payment->date)) - 1;
                 $year = date('Y', strtotime($payment->date));
                 if ($year == date('Y')) {
-                    $monthlyRevenue[$month] += $payment->amount_paid;
+                    if (in_array($payment->type, ['Registration', 'Session', 'Exam'])) {
+                        $monthlyRevenue[$month] += $payment->amount_paid;
+                    } elseif (in_array($payment->type, ['Maintenance', 'Incident'])) {
+                        $monthlyExpenses[$month] += $payment->amount_paid;
+                    }
                 }
             }
 
@@ -473,15 +568,20 @@ class StatisticsController extends Controller
                 'sessions' => $sessions,
                 'payments' => $payments,
                 'totalRevenue' => $totalRevenue,
+                'totalExpenses' => $totalExpenses,
+                'netRevenue' => $netRevenue,
                 'totalStudents' => $totalStudents,
                 'totalSessions' => $totalSessions,
                 'completionRate' => $completionRate,
                 'registrationRevenue' => $registrationRevenue,
                 'sessionRevenue' => $sessionRevenue,
                 'examRevenue' => $examRevenue,
+                'maintenanceExpenses' => $maintenanceExpenses,
+                'incidentExpenses' => $incidentExpenses,
                 'paymentMethods' => $paymentMethods,
                 'categoryDistribution' => $categoryDistribution,
                 'monthlyRevenue' => $monthlyRevenue,
+                'monthlyExpenses' => $monthlyExpenses,
                 'monthlyRegistrations' => $monthlyRegistrations,
                 'months' => $months,
                 'topInstructors' => $topInstructors,
@@ -527,11 +627,21 @@ class StatisticsController extends Controller
     }
 
     /**
-     * Calculate KPIs
+     * Calculate KPIs including expenses
      */
     private function calculateKPIs($students, $sessions, $payments, $currentMonth, $currentYear)
     {
-        $totalRevenue = $payments->sum('amount_paid');
+        // Revenue from Registration, Session, Exam
+        $totalRevenue = $payments->filter(function($payment) {
+            return in_array($payment->type, ['Registration', 'Session', 'Exam']);
+        })->sum('amount_paid');
+
+        // Expenses from Maintenance and Incident
+        $totalExpenses = $payments->filter(function($payment) {
+            return in_array($payment->type, ['Maintenance', 'Incident']);
+        })->sum('amount_paid');
+
+        $netRevenue = $totalRevenue - $totalExpenses;
         $totalStudents = $students->count();
         $totalSessions = $sessions->count();
         $completedSessions = $sessions->where('status', 'Completed')->count();
@@ -540,7 +650,9 @@ class StatisticsController extends Controller
         $currentMonthRevenue = $payments->filter(function($payment) use ($currentMonth, $currentYear) {
             $date = date('n', strtotime($payment->date));
             $year = date('Y', strtotime($payment->date));
-            return $date == $currentMonth && $year == $currentYear;
+            return in_array($payment->type, ['Registration', 'Session', 'Exam']) &&
+                   $date == $currentMonth &&
+                   $year == $currentYear;
         })->sum('amount_paid');
 
         $prevMonth = $currentMonth == 1 ? 12 : $currentMonth - 1;
@@ -548,7 +660,9 @@ class StatisticsController extends Controller
         $previousMonthRevenue = $payments->filter(function($payment) use ($prevMonth, $prevYear) {
             $date = date('n', strtotime($payment->date));
             $year = date('Y', strtotime($payment->date));
-            return $date == $prevMonth && $year == $prevYear;
+            return in_array($payment->type, ['Registration', 'Session', 'Exam']) &&
+                   $date == $prevMonth &&
+                   $year == $prevYear;
         })->sum('amount_paid');
 
         $revenueChange = $previousMonthRevenue > 0
@@ -559,6 +673,8 @@ class StatisticsController extends Controller
 
         return [
             'total_revenue' => $totalRevenue,
+            'total_expenses' => $totalExpenses,
+            'net_revenue' => $netRevenue,
             'total_students' => $totalStudents,
             'total_sessions' => $totalSessions,
             'completion_rate' => $completionRate,
@@ -604,7 +720,7 @@ class StatisticsController extends Controller
     }
 
     /**
-     * Get revenue data by month
+     * Get revenue data by month (Registration, Session, Exam only)
      */
     private function getRevenueByMonth($payments, $currentYear)
     {
@@ -634,13 +750,35 @@ class StatisticsController extends Controller
             }
         }
 
+        $datasets = [];
+
+        if (array_sum($registrationRevenue) > 0) {
+            $datasets[] = [
+                'name' => 'Registration Fees',
+                'data' => $registrationRevenue,
+                'color' => '#8cff2e'
+            ];
+        }
+
+        if (array_sum($sessionRevenue) > 0) {
+            $datasets[] = [
+                'name' => 'Session Payments',
+                'data' => $sessionRevenue,
+                'color' => '#3b82f6'
+            ];
+        }
+
+        if (array_sum($examRevenue) > 0) {
+            $datasets[] = [
+                'name' => 'Exam Fees',
+                'data' => $examRevenue,
+                'color' => '#f59e0b'
+            ];
+        }
+
         return [
             'labels' => $months,
-            'datasets' => [
-                ['name' => 'Registration Fees', 'data' => $registrationRevenue, 'color' => '#8cff2e'],
-                ['name' => 'Session Payments', 'data' => $sessionRevenue, 'color' => '#3b82f6'],
-                ['name' => 'Exam Fees', 'data' => $examRevenue, 'color' => '#f59e0b'],
-            ]
+            'datasets' => $datasets
         ];
     }
 
@@ -745,10 +883,6 @@ class StatisticsController extends Controller
             // Default distribution if no payments
             $distribution = [
                 ['name' => 'Cash', 'value' => 100, 'color' => '#8cff2e', 'count' => 0],
-                ['name' => 'Bank Transfer', 'value' => 0, 'color' => '#3b82f6', 'count' => 0],
-                ['name' => 'Card', 'value' => 0, 'color' => '#10b981', 'count' => 0],
-                ['name' => 'Cheque', 'value' => 0, 'color' => '#f59e0b', 'count' => 0],
-                ['name' => 'Online', 'value' => 0, 'color' => '#8b5cf6', 'count' => 0],
             ];
         }
 
@@ -834,7 +968,7 @@ class StatisticsController extends Controller
     private function getRecentTransactions($payments)
     {
         return $payments->sortByDesc('date')
-            ->take(5)
+            ->take(10)
             ->map(function($payment) {
                 return [
                     'id' => $payment->id,
