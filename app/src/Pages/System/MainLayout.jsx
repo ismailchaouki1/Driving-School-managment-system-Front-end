@@ -1,5 +1,5 @@
 // Pages/System/MainLayout.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import axios from '../../services/axios';
@@ -38,6 +38,7 @@ import {
   XCircle,
   BriefcaseBusiness,
   Loader,
+  Trash2,
 } from 'lucide-react';
 import '../../Styles/System/MainLayout.scss';
 
@@ -48,8 +49,8 @@ const MainLayout = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-
   const { notifications, markAsRead, markAllAsRead, getUnreadCount } = useNotifications();
+  const fileInputRef = useRef(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -226,6 +227,51 @@ const MainLayout = () => {
     setNotificationsOpen(false);
   };
 
+  // Avatar upload handler
+  const handleAvatarUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      showToast('Please select a valid image file (JPEG, PNG, JPG, GIF)', 'error');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Image size must be less than 2MB', 'error');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+      const response = await axios.post('/profile/avatar', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success) {
+        // Update user data
+        const updatedUser = { ...userData, avatar: response.data.data.avatar };
+        setUserData(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        showToast('Profile picture updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      showToast(error.response?.data?.message || 'Failed to upload profile picture', 'error');
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Profile Modal Handlers
   const openProfileModal = () => {
     setUserMenuOpen(false);
@@ -306,7 +352,7 @@ const MainLayout = () => {
 
       if (response.data.success) {
         // Update local user data
-        const updatedUser = { ...userData, ...updateData };
+        const updatedUser = { ...userData, ...response.data.data.user };
         setUserData(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
 
@@ -538,10 +584,15 @@ const MainLayout = () => {
                     <span>{getInitials(userData.name)}</span>
                   )}
                 </div>
-                <button className="change-avatar-btn">
-                  <Camera size={16} />
-                  Change Photo
-                </button>
+                <div className="avatar-actions">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png,image/jpg,image/gif"
+                    onChange={handleAvatarUpload}
+                    style={{ display: 'none' }}
+                  />
+                </div>
               </div>
 
               <div className="form-section">
@@ -591,6 +642,9 @@ const MainLayout = () => {
                 <div className="section-header">
                   <Key size={14} />
                   <h4>Change Password</h4>
+                  <p className="section-note">
+                    Leave password fields empty to keep current password
+                  </p>
                 </div>
                 <div className="form-row">
                   <div className="form-field">
