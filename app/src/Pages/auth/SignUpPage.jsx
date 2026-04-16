@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
@@ -12,6 +12,16 @@ gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 export default function SignUpPage() {
   const smootherRef = useRef(null);
   const contentRef = useRef(null);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  useEffect(() => {
+    // Check if coming back from checkout
+    const fromCheckout = location.state?.from === 'checkout';
+    if (fromCheckout) {
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 5000);
+    }
+  }, []);
 
   useEffect(() => {
     // 1. Initialize Smoother
@@ -57,7 +67,9 @@ export default function SignUpPage() {
           <Header appear={false} />
         </div>
       </header>
-
+      {showSuccessMessage && (
+        <div className="success-toast">✓ Account created! Please choose a plan to continue.</div>
+      )}
       <div id="smooth-wrapper">
         <div id="smooth-content" ref={contentRef}>
           <main className="mainContainer">

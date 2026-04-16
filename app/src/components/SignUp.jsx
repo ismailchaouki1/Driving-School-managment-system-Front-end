@@ -4,7 +4,7 @@ import '../Styles/SignUp.scss';
 import gsap from 'gsap';
 import { Link, useNavigate } from 'react-router-dom';
 import { ScrollSmoother } from 'gsap/ScrollSmoother';
-import axios from 'axios';
+import axiosInstance from '../services/axios';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -36,42 +36,24 @@ export default function SignUp() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrors({});
+    setErrors('');
 
     try {
-      const response = await axios.post(`${API_URL}/signup`, {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        password_confirmation: formData.password_confirmation,
-      });
+      const response = await axiosInstance.post('/signup', formData);
 
       if (response.data.success) {
-        // Auto-login after signup
+        // ✅ Store the token immediately
         localStorage.setItem('token', response.data.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.data.user));
 
-        // Set default axios header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
+        // ✅ Store that user needs subscription
+        localStorage.setItem('requires_subscription', 'true');
 
-        // Redirect to dashboard
-        navigate('/system/dashboard');
+        // ✅ Redirect to pricing page to choose plan
+        navigate('/pricing?new=true&from=signup');
       }
     } catch (err) {
-      if (err.response?.data?.errors) {
-        const fieldErrors = {};
-        const apiErrors = err.response.data.errors;
-
-        if (apiErrors.name) fieldErrors.name = apiErrors.name[0];
-        if (apiErrors.email) fieldErrors.email = apiErrors.email[0];
-        if (apiErrors.password) fieldErrors.password = apiErrors.password[0];
-
-        setErrors(fieldErrors);
-      } else if (err.response?.data?.message) {
-        setErrors({ general: err.response.data.message });
-      } else {
-        setErrors({ general: 'Sign up failed. Please try again.' });
-      }
+      setErrors(err.response?.data?.message || 'Signup failed');
     } finally {
       setIsLoading(false);
     }

@@ -113,7 +113,9 @@ export default function PricingSection() {
   };
   const handleSubscribe = async (plan) => {
     const token = localStorage.getItem('token');
+    const requiresSubscription = localStorage.getItem('requires_subscription');
 
+    // If no token, redirect to login
     if (!token) {
       window.location.href = `/login?redirect=/pricing&plan=${plan.id}&billing=${yearly ? 'yearly' : 'monthly'}`;
       return;
@@ -123,13 +125,19 @@ export default function PricingSection() {
     setLoading(true);
 
     try {
+      // Always send the request with the token
       const response = await axiosInstance.post('/stripe/create-checkout-session', {
         plan: plan.id,
         billing: yearly ? 'yearly' : 'monthly',
       });
 
       if (response.data.success) {
-        // ✅ FIX: Use window.location.href instead of stripe.redirectToCheckout
+        // If this is a new user, mark that checkout is in progress
+        if (requiresSubscription) {
+          sessionStorage.setItem('checkoutInProgress', 'true');
+        }
+
+        // Redirect to Stripe checkout
         window.location.href = response.data.session_url;
       } else {
         alert('Failed to start checkout. Please try again.');
@@ -137,6 +145,9 @@ export default function PricingSection() {
     } catch (error) {
       console.error('Checkout error:', error);
       if (error.response?.status === 401) {
+        // Token expired or invalid
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
         window.location.href = `/login?redirect=/pricing&plan=${plan.id}&billing=${yearly ? 'yearly' : 'monthly'}`;
       } else {
         alert(error.response?.data?.message || 'Failed to start checkout. Please try again.');
