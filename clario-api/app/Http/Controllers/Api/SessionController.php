@@ -22,180 +22,184 @@ class SessionController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
-        try {
-            $sessions = DB::table('driving_sessions')
-                ->orderBy('date', 'desc')
-                ->orderBy('start_time', 'asc')
-                ->get();
+{
+    try {
+        // ✅ USE ELOQUENT MODEL
+        $sessions = Session::orderBy('date', 'desc')
+            ->orderBy('start_time', 'asc')
+            ->get();
 
-            $sessions = $sessions->map(function($session) {
-                $session->start_time = date('H:i', strtotime($session->start_time));
-                $session->end_time = date('H:i', strtotime($session->end_time));
-                return $session;
-            });
+        $sessions = $sessions->map(function($session) {
+            $session->start_time = date('H:i', strtotime($session->start_time));
+            $session->end_time = date('H:i', strtotime($session->end_time));
+            return $session;
+        });
 
-            return response()->json([
-                'success' => true,
-                'data' => $sessions,
-                'message' => 'Sessions retrieved successfully'
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to load sessions: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load sessions: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $sessions,
+            'message' => 'Sessions retrieved successfully'
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Failed to load sessions: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load sessions: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        DB::beginTransaction();
+{
+    DB::beginTransaction();
 
-        try {
-            Log::info('=== SESSION CREATION START ===');
-            Log::info('Request data:', $request->all());
+    try {
+        Log::info('=== SESSION CREATION START ===');
+        Log::info('Request data:', $request->all());
 
-            $validated = $request->validate([
-                'student_id' => 'nullable|exists:students,id',
-                'student_name' => 'required|string|max:255',
-                'student_category' => 'required|string|max:10',
-                'student_type' => 'required|in:registered,walkin',
-                'student_phone' => 'nullable|string|max:20',
-                'student_email' => 'nullable|email|max:255',
-                'instructor_id' => 'required|exists:instructors,id',
-                'instructor_name' => 'required|string|max:255',
-                'type' => 'required|in:Code,Driving',
-                'status' => 'required|in:Scheduled,In Progress,Completed,Cancelled,No Show',
-                'date' => 'required|date',
-                'start_time' => 'required',
-                'end_time' => 'required',
-                'duration' => 'required|integer|min:30',
-                'price' => 'required|numeric|min:0',
-                'payment_status' => 'required|in:Paid,Pending',
-                'vehicle_id' => 'nullable|exists:vehicles,id',
-                'vehicle_plate' => 'nullable|string|max:20',
-                'location' => 'nullable|string|max:255',
-                'notes' => 'nullable|string',
+        $validated = $request->validate([
+            'student_id' => 'nullable|exists:students,id',
+            'student_name' => 'required|string|max:255',
+            'student_category' => 'required|string|max:10',
+            'student_type' => 'required|in:registered,walkin',
+            'student_phone' => 'nullable|string|max:20',
+            'student_email' => 'nullable|email|max:255',
+            'instructor_id' => 'required|exists:instructors,id',
+            'instructor_name' => 'required|string|max:255',
+            'type' => 'required|in:Code,Driving',
+            'status' => 'required|in:Scheduled,In Progress,Completed,Cancelled,No Show',
+            'date' => 'required|date',
+            'start_time' => 'required',
+            'end_time' => 'required',
+            'duration' => 'required|integer|min:30',
+            'price' => 'required|numeric|min:0',
+            'payment_status' => 'required|in:Paid,Pending',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'vehicle_plate' => 'nullable|string|max:20',
+            'location' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Add user_id automatically
+        $validated['user_id'] = $request->user()->id;
+
+        // Format times
+        $validated['start_time'] = date('H:i:s', strtotime($validated['start_time']));
+        $validated['end_time'] = date('H:i:s', strtotime($validated['end_time']));
+
+        // Create session
+        $session = Session::create($validated);
+        Log::info('Session created with ID: ' . $session->id);
+
+        // ========== CREATE PAYMENT FOR WALK-IN OR REGISTERED STUDENT WITH PAID STATUS ==========
+        $payment = null;
+
+        if ($validated['payment_status'] === 'Paid' && $validated['price'] > 0) {
+            Log::info('Creating payment for session...');
+
+            // Generate unique reference with retry logic
+            $reference = $this->generateUniquePaymentReference();
+            $receiptNumber = 'RCP-SESS-' . str_pad($session->id, 6, '0', STR_PAD_LEFT);
+
+            // Generate CIN for walk-in students
+            $cin = $validated['student_type'] === 'walkin'
+                ? 'WALKIN-' . date('YmdHis')
+                : ($validated['student_phone'] ?? 'WALKIN');
+
+            $paymentData = [
+                'reference' => $reference,
+                'user_id' => $request->user()->id, // Add user_id to payment
+                'session_id' => $session->id,
+                'student_id' => $validated['student_id'] ?? null,
+                'student_name' => $validated['student_name'],
+                'student_cin' => $cin,
+                'student_phone' => $validated['student_phone'],
+                'student_email' => $validated['student_email'] ?? null,
+                'category' => $validated['student_category'],
+                'payment_category' => 'session',
+                'amount_total' => $validated['price'],
+                'amount_paid' => $validated['price'],
+                'amount_remaining' => 0,
+                'status' => 'Paid',
+                'method' => 'Cash',
+                'type' => 'Session',
+                'date' => $validated['date'],
+                'due_date' => $validated['date'],
+                'instructor' => $validated['instructor_name'],
+                'notes' => 'Payment for ' . $validated['type'] . ' session - ' . ucfirst($validated['student_type']),
+                'receipt_number' => $receiptNumber,
+                'payment_reference' => 'SESS-' . $session->id,
+            ];
+
+            $payment = Payment::create($paymentData);
+            Log::info('Payment created successfully:', [
+                'payment_id' => $payment->id,
+                'reference' => $payment->reference,
+                'amount' => $payment->amount_paid
             ]);
-
-            // Format times
-            $validated['start_time'] = date('H:i:s', strtotime($validated['start_time']));
-            $validated['end_time'] = date('H:i:s', strtotime($validated['end_time']));
-
-            // Create session
-            $session = Session::create($validated);
-            Log::info('Session created with ID: ' . $session->id);
-
-            // ========== CREATE PAYMENT FOR WALK-IN OR REGISTERED STUDENT WITH PAID STATUS ==========
-            $payment = null;
-
-            if ($validated['payment_status'] === 'Paid' && $validated['price'] > 0) {
-                Log::info('Creating payment for session...');
-
-                // Generate unique reference with retry logic
-                $reference = $this->generateUniquePaymentReference();
-                $receiptNumber = 'RCP-SESS-' . str_pad($session->id, 6, '0', STR_PAD_LEFT);
-
-                // Generate CIN for walk-in students
-                $cin = $validated['student_type'] === 'walkin'
-                    ? 'WALKIN-' . date('YmdHis')
-                    : ($validated['student_phone'] ?? 'WALKIN');
-
-                $paymentData = [
-                    'reference' => $reference,
-                    'session_id' => $session->id,
-                    'student_id' => $validated['student_id'] ?? null,
-                    'student_name' => $validated['student_name'],
-                    'student_cin' => $cin,
-                    'student_phone' => $validated['student_phone'],
-                    'student_email' => $validated['student_email'] ?? null,
-                    'category' => $validated['student_category'],
-                    'payment_category' => 'session',
-                    'amount_total' => $validated['price'],
-                    'amount_paid' => $validated['price'],
-                    'amount_remaining' => 0,
-                    'status' => 'Paid',
-                    'method' => 'Cash',
-                    'type' => 'Session',
-                    'date' => $validated['date'],
-                    'due_date' => $validated['date'],
-                    'instructor' => $validated['instructor_name'],
-                    'notes' => 'Payment for ' . $validated['type'] . ' session - ' . ucfirst($validated['student_type']),
-                    'receipt_number' => $receiptNumber,
-                    'payment_reference' => 'SESS-' . $session->id,
-                ];
-
-                $payment = Payment::create($paymentData);
-                Log::info('Payment created successfully:', [
-                    'payment_id' => $payment->id,
-                    'reference' => $payment->reference,
-                    'amount' => $payment->amount_paid
-                ]);
-            } else {
-                Log::info('Payment NOT created. Conditions not met:', [
-                    'payment_status' => $validated['payment_status'],
-                    'price' => $validated['price']
-                ]);
-            }
-
-            // Update instructor stats
-            if ($session->instructor_id) {
-                $instructor = Instructor::find($session->instructor_id);
-                if ($instructor) {
-                    $instructor->increment('sessions_count');
-                    if ($payment) {
-                        $instructor->increment('revenue', $session->price);
-                    }
-
-                    $completedSessions = Session::where('instructor_id', $instructor->id)
-                        ->where('status', 'Completed')
-                        ->count();
-                    $totalSessions = Session::where('instructor_id', $instructor->id)->count();
-                    $instructor->completion_rate = $totalSessions > 0
-                        ? ($completedSessions / $totalSessions) * 100
-                        : 0;
-                    $instructor->save();
-                }
-            }
-
-            // Update vehicle session count
-            if ($session->vehicle_id) {
-                $vehicle = Vehicle::find($session->vehicle_id);
-                if ($vehicle) {
-                    $vehicle->increment('sessions_count');
-                    $vehicle->save();
-                }
-            }
-
-            DB::commit();
-
-            // Format response times
-            $session->start_time = date('H:i', strtotime($session->start_time));
-            $session->end_time = date('H:i', strtotime($session->end_time));
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Session created successfully' . ($payment ? ' with payment record' : ''),
-                'data' => $session,
-                'payment_created' => $payment ? true : false
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('Failed to create session: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create session: ' . $e->getMessage()
-            ], 500);
+        } else {
+            Log::info('Payment NOT created. Conditions not met:', [
+                'payment_status' => $validated['payment_status'],
+                'price' => $validated['price']
+            ]);
         }
+
+        // Update instructor stats
+        if ($session->instructor_id) {
+            $instructor = Instructor::find($session->instructor_id);
+            if ($instructor) {
+                $instructor->increment('sessions_count');
+                if ($payment) {
+                    $instructor->increment('revenue', $session->price);
+                }
+
+                $completedSessions = Session::where('instructor_id', $instructor->id)
+                    ->where('status', 'Completed')
+                    ->count();
+                $totalSessions = Session::where('instructor_id', $instructor->id)->count();
+                $instructor->completion_rate = $totalSessions > 0
+                    ? ($completedSessions / $totalSessions) * 100
+                    : 0;
+                $instructor->save();
+            }
+        }
+
+        // Update vehicle session count
+        if ($session->vehicle_id) {
+            $vehicle = Vehicle::find($session->vehicle_id);
+            if ($vehicle) {
+                $vehicle->increment('sessions_count');
+                $vehicle->save();
+            }
+        }
+
+        DB::commit();
+
+        // Format response times
+        $session->start_time = date('H:i', strtotime($session->start_time));
+        $session->end_time = date('H:i', strtotime($session->end_time));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session created successfully' . ($payment ? ' with payment record' : ''),
+            'data' => $session,
+            'payment_created' => $payment ? true : false
+        ], 201);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Failed to create session: ' . $e->getMessage());
+        Log::error('Stack trace: ' . $e->getTraceAsString());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create session: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Generate a unique payment reference
@@ -451,52 +455,53 @@ class SessionController extends Controller
      * Get calendar sessions (for month view)
      */
     public function getCalendarSessions(Request $request)
-    {
-        try {
-            $query = DB::table('driving_sessions');
+{
+    try {
+        // ✅ USE ELOQUENT MODEL
+        $query = Session::query();
 
-            if ($request->has('month') && $request->has('year')) {
-                $query->whereMonth('date', $request->month)
-                      ->whereYear('date', $request->year);
-            }
-
-            if ($request->has('start_date') && $request->start_date) {
-                $query->where('date', '>=', $request->start_date);
-            }
-
-            if ($request->has('end_date') && $request->end_date) {
-                $query->where('date', '<=', $request->end_date);
-            }
-
-            if ($request->has('type') && $request->type !== 'All') {
-                $query->where('type', $request->type);
-            }
-
-            if ($request->has('instructor_id') && $request->instructor_id !== 'All') {
-                $query->where('instructor_id', $request->instructor_id);
-            }
-
-            $sessions = $query->orderBy('date', 'asc')
-                             ->orderBy('start_time', 'asc')
-                             ->get();
-
-            $sessions = $sessions->map(function($session) {
-                $session->start_time = date('H:i', strtotime($session->start_time));
-                $session->end_time = date('H:i', strtotime($session->end_time));
-                return $session;
-            });
-
-            return response()->json([
-                'success' => true,
-                'data' => $sessions
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load calendar: ' . $e->getMessage()
-            ], 500);
+        if ($request->has('month') && $request->has('year')) {
+            $query->whereMonth('date', $request->month)
+                  ->whereYear('date', $request->year);
         }
+
+        if ($request->has('start_date') && $request->start_date) {
+            $query->where('date', '>=', $request->start_date);
+        }
+
+        if ($request->has('end_date') && $request->end_date) {
+            $query->where('date', '<=', $request->end_date);
+        }
+
+        if ($request->has('type') && $request->type !== 'All') {
+            $query->where('type', $request->type);
+        }
+
+        if ($request->has('instructor_id') && $request->instructor_id !== 'All') {
+            $query->where('instructor_id', $request->instructor_id);
+        }
+
+        $sessions = $query->orderBy('date', 'asc')
+                         ->orderBy('start_time', 'asc')
+                         ->get();
+
+        $sessions = $sessions->map(function($session) {
+            $session->start_time = date('H:i', strtotime($session->start_time));
+            $session->end_time = date('H:i', strtotime($session->end_time));
+            return $session;
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $sessions
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load calendar: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Get upcoming sessions
@@ -754,36 +759,35 @@ class SessionController extends Controller
      * Get sessions with real-time status
      */
     public function getSessionsWithRealTimeStatus()
-    {
-        try {
-            // First update statuses based on current time
-            $this->updateStatusBasedOnTime();
+{
+    try {
+        // First update statuses based on current time
+        $this->updateStatusBasedOnTime();
 
-            // Then return all sessions
-            $sessions = DB::table('driving_sessions')
-                ->orderBy('date', 'asc')
-                ->orderBy('start_time', 'asc')
-                ->get();
+        // ✅ USE ELOQUENT MODEL
+        $sessions = Session::orderBy('date', 'asc')
+            ->orderBy('start_time', 'asc')
+            ->get();
 
-            $sessions = $sessions->map(function($session) {
-                $session->start_time = date('H:i', strtotime($session->start_time));
-                $session->end_time = date('H:i', strtotime($session->end_time));
-                return $session;
-            });
+        $sessions = $sessions->map(function($session) {
+            $session->start_time = date('H:i', strtotime($session->start_time));
+            $session->end_time = date('H:i', strtotime($session->end_time));
+            return $session;
+        });
 
-            return response()->json([
-                'success' => true,
-                'data' => $sessions,
-                'current_time' => now()->format('Y-m-d H:i:s')
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Failed to load sessions: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load sessions: ' . $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $sessions,
+            'current_time' => now()->format('Y-m-d H:i:s')
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Failed to load sessions: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to load sessions: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Manually complete a session

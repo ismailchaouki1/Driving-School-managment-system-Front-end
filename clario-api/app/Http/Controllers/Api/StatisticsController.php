@@ -24,6 +24,7 @@ class StatisticsController extends Controller
     public function getDashboardStats(Request $request)
     {
         try {
+            $userId = $request->user()->id;
             $dateRange = $request->get('date_range', 'year');
             $filterType = $request->get('filter_type', 'All');
             $filterCategory = $request->get('filter_category', 'All');
@@ -34,24 +35,30 @@ class StatisticsController extends Controller
             // Get date range filters
             $dateFilter = $this->getDateFilter($dateRange);
 
-            // Fetch all data
-            $students = Student::all();
-            $instructors = Instructor::all();
-            $vehicles = Vehicle::all();
+            // Fetch all data filtered by user_id
+            $students = Student::where('user_id', $userId)->get();
+            $instructors = Instructor::where('user_id', $userId)->get();
+            $vehicles = Vehicle::where('user_id', $userId)->get();
 
-            // Filter sessions by date range and type
-            $sessions = Session::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterType !== 'All', function($query) use ($filterType) {
-                return $query->where('type', $filterType);
-            })->get();
+            // Filter sessions by date range, type, and user_id
+            $sessions = Session::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterType !== 'All', function($query) use ($filterType) {
+                    return $query->where('type', $filterType);
+                })
+                ->get();
 
-            // Filter payments by date range and category
-            $payments = Payment::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterCategory !== 'All', function($query) use ($filterCategory) {
-                return $query->where('type', $filterCategory);
-            })->get();
+            // Filter payments by date range, category, and user_id
+            $payments = Payment::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterCategory !== 'All', function($query) use ($filterCategory) {
+                    return $query->where('type', $filterCategory);
+                })
+                ->get();
 
             // Calculate KPIs
             $kpis = $this->calculateKPIs($students, $sessions, $payments, $currentMonth, $currentYear);
@@ -118,61 +125,12 @@ class StatisticsController extends Controller
     }
 
     /**
-     * Get expenses data by month (Maintenance & Incident)
-     */
-    private function getExpensesByMonth($payments, $currentYear)
-    {
-        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        $maintenanceExpenses = array_fill(0, 12, 0);
-        $incidentExpenses = array_fill(0, 12, 0);
-
-        foreach ($payments as $payment) {
-            $date = date('n', strtotime($payment->date));
-            $year = date('Y', strtotime($payment->date));
-            $month = (int)$date - 1;
-            $amount = (float)$payment->amount_paid;
-
-            if ($year == $currentYear) {
-                if ($payment->type === 'Maintenance') {
-                    $maintenanceExpenses[$month] += $amount;
-                } elseif ($payment->type === 'Incident') {
-                    $incidentExpenses[$month] += $amount;
-                }
-            }
-        }
-
-        $datasets = [];
-
-        // Add maintenance expenses dataset if any
-        if (array_sum($maintenanceExpenses) > 0) {
-            $datasets[] = [
-                'name' => 'Maintenance',
-                'data' => $maintenanceExpenses,
-                'color' => '#f59e0b'
-            ];
-        }
-
-        // Add incident expenses dataset if any
-        if (array_sum($incidentExpenses) > 0) {
-            $datasets[] = [
-                'name' => 'Incidents',
-                'data' => $incidentExpenses,
-                'color' => '#ef4444'
-            ];
-        }
-
-        return [
-            'labels' => $months,
-            'datasets' => $datasets
-        ];
-    }
-
-    /**
      * Get revenue trends data
      */
     public function getRevenueTrends(Request $request)
     {
         try {
+            $userId = $request->user()->id;
             $year = $request->get('year', now()->year);
             $type = $request->get('type', 'all');
             $filterCategory = $request->get('filter_category', 'All');
@@ -184,7 +142,7 @@ class StatisticsController extends Controller
                 'exam' => array_fill(0, 12, 0),
             ];
 
-            $query = Payment::whereYear('date', $year);
+            $query = Payment::where('user_id', $userId)->whereYear('date', $year);
 
             if ($filterCategory !== 'All') {
                 $query->where('type', $filterCategory);
@@ -257,11 +215,14 @@ class StatisticsController extends Controller
     public function getStudentRegistrations(Request $request)
     {
         try {
+            $userId = $request->user()->id;
             $year = $request->get('year', now()->year);
             $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             $registrations = array_fill(0, 12, 0);
 
-            $students = Student::whereYear('registration_date', $year)->get();
+            $students = Student::where('user_id', $userId)
+                ->whereYear('registration_date', $year)
+                ->get();
 
             foreach ($students as $student) {
                 $month = (int)date('n', strtotime($student->registration_date)) - 1;
@@ -289,27 +250,34 @@ class StatisticsController extends Controller
     public function exportExcel(Request $request)
     {
         try {
+            $userId = $request->user()->id;
             $dateRange = $request->get('date_range', 'year');
             $filterType = $request->get('filter_type', 'All');
             $filterCategory = $request->get('filter_category', 'All');
             $dateFilter = $this->getDateFilter($dateRange);
 
-            // Get data for report with filters
-            $students = Student::all();
-            $instructors = Instructor::all();
-            $vehicles = Vehicle::all();
+            // Get data for report with filters and user_id
+            $students = Student::where('user_id', $userId)->get();
+            $instructors = Instructor::where('user_id', $userId)->get();
+            $vehicles = Vehicle::where('user_id', $userId)->get();
 
-            $sessions = Session::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterType !== 'All', function($query) use ($filterType) {
-                return $query->where('type', $filterType);
-            })->get();
+            $sessions = Session::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterType !== 'All', function($query) use ($filterType) {
+                    return $query->where('type', $filterType);
+                })
+                ->get();
 
-            $payments = Payment::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterCategory !== 'All', function($query) use ($filterCategory) {
-                return $query->where('type', $filterCategory);
-            })->get();
+            $payments = Payment::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterCategory !== 'All', function($query) use ($filterCategory) {
+                    return $query->where('type', $filterCategory);
+                })
+                ->get();
 
             // Calculate statistics for the report
             $totalRevenue = $payments->filter(function($payment) {
@@ -436,27 +404,34 @@ class StatisticsController extends Controller
     public function exportPdf(Request $request)
     {
         try {
+            $userId = $request->user()->id;
             $dateRange = $request->get('date_range', 'year');
             $filterType = $request->get('filter_type', 'All');
             $filterCategory = $request->get('filter_category', 'All');
             $dateFilter = $this->getDateFilter($dateRange);
 
-            // Fetch data with filters
-            $students = Student::all();
-            $instructors = Instructor::all();
-            $vehicles = Vehicle::all();
+            // Fetch data with filters and user_id
+            $students = Student::where('user_id', $userId)->get();
+            $instructors = Instructor::where('user_id', $userId)->get();
+            $vehicles = Vehicle::where('user_id', $userId)->get();
 
-            $sessions = Session::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterType !== 'All', function($query) use ($filterType) {
-                return $query->where('type', $filterType);
-            })->get();
+            $sessions = Session::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterType !== 'All', function($query) use ($filterType) {
+                    return $query->where('type', $filterType);
+                })
+                ->get();
 
-            $payments = Payment::when($dateFilter, function($query) use ($dateFilter) {
-                return $query->whereBetween('date', $dateFilter);
-            })->when($filterCategory !== 'All', function($query) use ($filterCategory) {
-                return $query->where('type', $filterCategory);
-            })->get();
+            $payments = Payment::where('user_id', $userId)
+                ->when($dateFilter, function($query) use ($dateFilter) {
+                    return $query->whereBetween('date', $dateFilter);
+                })
+                ->when($filterCategory !== 'All', function($query) use ($filterCategory) {
+                    return $query->where('type', $filterCategory);
+                })
+                ->get();
 
             // Calculate statistics
             $totalRevenue = $payments->filter(function($payment) {
@@ -773,6 +748,54 @@ class StatisticsController extends Controller
                 'name' => 'Exam Fees',
                 'data' => $examRevenue,
                 'color' => '#f59e0b'
+            ];
+        }
+
+        return [
+            'labels' => $months,
+            'datasets' => $datasets
+        ];
+    }
+
+    /**
+     * Get expenses data by month (Maintenance & Incident)
+     */
+    private function getExpensesByMonth($payments, $currentYear)
+    {
+        $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        $maintenanceExpenses = array_fill(0, 12, 0);
+        $incidentExpenses = array_fill(0, 12, 0);
+
+        foreach ($payments as $payment) {
+            $date = date('n', strtotime($payment->date));
+            $year = date('Y', strtotime($payment->date));
+            $month = (int)$date - 1;
+            $amount = (float)$payment->amount_paid;
+
+            if ($year == $currentYear) {
+                if ($payment->type === 'Maintenance') {
+                    $maintenanceExpenses[$month] += $amount;
+                } elseif ($payment->type === 'Incident') {
+                    $incidentExpenses[$month] += $amount;
+                }
+            }
+        }
+
+        $datasets = [];
+
+        if (array_sum($maintenanceExpenses) > 0) {
+            $datasets[] = [
+                'name' => 'Maintenance',
+                'data' => $maintenanceExpenses,
+                'color' => '#f59e0b'
+            ];
+        }
+
+        if (array_sum($incidentExpenses) > 0) {
+            $datasets[] = [
+                'name' => 'Incidents',
+                'data' => $incidentExpenses,
+                'color' => '#ef4444'
             ];
         }
 

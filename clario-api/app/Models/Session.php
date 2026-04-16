@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Session extends Model
 {
-    use HasFactory;
+    use HasFactory,MultiTenantTrait;
 
     protected $table = 'driving_sessions';
 
     protected $fillable = [
+        'user_id',
         'student_id',
         'student_name',
         'student_category',

@@ -93,39 +93,43 @@ class PaymentController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        try {
-            $data = $request->all();
+{
+    try {
+        $data = $request->all();
 
-            if (!isset($data['method']) || empty($data['method'])) {
-                $data['method'] = 'Cash';
-            }
-            // Auto-calculate remaining
-            $data['amount_remaining'] = $data['amount_total'] - $data['amount_paid'];
+        // Add user_id automatically
+        $data['user_id'] = $request->user()->id;
 
-            // Auto-set status
-            if ($data['amount_paid'] >= $data['amount_total']) {
-                $data['status'] = 'Paid';
-            } elseif ($data['amount_paid'] > 0) {
-                $data['status'] = 'Partial';
-            } else {
-                $data['status'] = 'Pending';
-            }
-
-            $payment = Payment::create($data);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment created successfully',
-                'data' => $payment
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create payment: ' . $e->getMessage()
-            ], 500);
+        if (!isset($data['method']) || empty($data['method'])) {
+            $data['method'] = 'Cash';
         }
+
+        // Auto-calculate remaining
+        $data['amount_remaining'] = $data['amount_total'] - $data['amount_paid'];
+
+        // Auto-set status
+        if ($data['amount_paid'] >= $data['amount_total']) {
+            $data['status'] = 'Paid';
+        } elseif ($data['amount_paid'] > 0) {
+            $data['status'] = 'Partial';
+        } else {
+            $data['status'] = 'Pending';
+        }
+
+        $payment = Payment::create($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment created successfully',
+            'data' => $payment
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create payment: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Display the specified resource.

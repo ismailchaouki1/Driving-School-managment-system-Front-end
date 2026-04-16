@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\PaymentController;  // ← ADD THIS
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\StatisticsController;
+use App\Http\Controllers\Api\StripeController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes
@@ -18,6 +19,10 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLink']);
 Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);
 Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
+
+
+Route::post('/stripe/webhook', [StripeController::class, 'handleWebhook'])->name('stripe.webhook');
+
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -84,6 +89,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/statistics/export-pdf', [StatisticsController::class, 'exportPdf']);
 
 
+
+     Route::post('/stripe/create-checkout-session', [StripeController::class, 'createCheckoutSession']);
+    Route::post('/stripe/create-payment-intent', [StripeController::class, 'createPaymentIntent']);
+    Route::get('/stripe/subscription-status', [StripeController::class, 'getSubscriptionStatus']);
+    Route::post('/stripe/cancel-subscription', [StripeController::class, 'cancelSubscription']);
 
 
 });

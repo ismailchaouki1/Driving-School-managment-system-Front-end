@@ -19,9 +19,8 @@ class StudentController extends Controller
     public function index()
     {
         try {
-            $students = DB::table('students')
-                ->orderBy('created_at', 'desc')
-                ->get();
+            // ✅ USE ELOQUENT MODEL, NOT DB FACADE
+            $students = Student::orderBy('created_at', 'desc')->get();
 
             return response()->json([
                 'success' => true,
@@ -37,71 +36,75 @@ class StudentController extends Controller
     }
 
     public function store(Request $request)
-    {
-        try {
-            Log::info('Creating student with data:', $request->all());
+{
+    try {
+        Log::info('Creating student with data:', $request->all());
 
-            $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'cin' => 'required|string|unique:students',
-                'age' => 'required|integer|min:16',
-                'email' => 'required|email|unique:students',
-                'phone' => 'required|string|max:20',
-                'address' => 'nullable|string',
-                'type' => 'required|string',
-                'initial_payment' => 'nullable|numeric|min:0',
-                'total_price' => 'nullable|numeric|min:0',
-                'payment_status' => 'required|in:Complete,Partial,Pending',
-                'registration_date' => 'required|date',
-                'parent_name' => 'nullable|string|max:255',
-                'emergency_contact' => 'nullable|string|max:20',
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'cin' => 'required|string|unique:students',
+            'age' => 'required|integer|min:16',
+            'email' => 'required|email|unique:students',
+            'phone' => 'required|string|max:20',
+            'address' => 'nullable|string',
+            'type' => 'required|string',
+            'initial_payment' => 'nullable|numeric|min:0',
+            'total_price' => 'nullable|numeric|min:0',
+            'payment_status' => 'required|in:Complete,Partial,Pending',
+            'registration_date' => 'required|date',
+            'parent_name' => 'nullable|string|max:255',
+            'emergency_contact' => 'nullable|string|max:20',
+        ]);
+
+        // MANUALLY SET user_id - IMPORTANT!
+        $validated['user_id'] = $request->user()->id;
+
+        $student = Student::create($validated);
+
+        // Create payment record if initial payment > 0
+        if (($validated['initial_payment'] ?? 0) > 0) {
+            $reference = 'PAY-' . date('Y') . '-' . str_pad(DB::table('payments')->count() + 1, 3, '0', STR_PAD_LEFT);
+
+            DB::table('payments')->insert([
+                'reference' => $reference,
+                'user_id' => $request->user()->id, // MANUALLY SET user_id
+                'student_id' => $student->id,
+                'student_name' => $student->first_name . ' ' . $student->last_name,
+                'student_cin' => $student->cin,
+                'student_phone' => $student->phone,
+                'student_email' => $student->email,
+                'category' => $student->type,
+                'payment_category' => 'registration',
+                'amount_total' => $validated['total_price'] ?? 0,
+                'amount_paid' => $validated['initial_payment'],
+                'amount_remaining' => ($validated['total_price'] ?? 0) - $validated['initial_payment'],
+                'status' => $validated['initial_payment'] >= ($validated['total_price'] ?? 0) ? 'Paid' : 'Partial',
+                'method' => 'Cash',
+                'type' => 'Registration',
+                'date' => now()->toDateString(),
+                'due_date' => now()->addMonths(3)->toDateString(),
+                'instructor' => $request->instructor ?? 'System',
+                'notes' => 'Initial registration payment',
+                'receipt_number' => 'RCP-' . str_pad($student->id, 6, '0', STR_PAD_LEFT),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
-
-            $student = Student::create($validated);
-
-            // Create payment record if initial payment > 0
-            if (($validated['initial_payment'] ?? 0) > 0) {
-                $reference = 'PAY-' . date('Y') . '-' . str_pad(DB::table('payments')->count() + 1, 3, '0', STR_PAD_LEFT);
-
-                DB::table('payments')->insert([
-                    'reference' => $reference,
-                    'student_id' => $student->id,
-                    'student_name' => $student->first_name . ' ' . $student->last_name,
-                    'student_cin' => $student->cin,
-                    'student_phone' => $student->phone,
-                    'student_email' => $student->email,
-                    'category' => $student->type,
-                    'payment_category' => 'registration',
-                    'amount_total' => $validated['total_price'] ?? 0,
-                    'amount_paid' => $validated['initial_payment'],
-                    'amount_remaining' => ($validated['total_price'] ?? 0) - $validated['initial_payment'],
-                    'status' => $validated['initial_payment'] >= ($validated['total_price'] ?? 0) ? 'Paid' : 'Partial',
-                    'method' => 'Cash',
-                    'type' => 'Registration',
-                    'date' => now()->toDateString(),
-                    'due_date' => now()->addMonths(3)->toDateString(),
-                    'instructor' => $request->instructor ?? 'System',
-                    'notes' => 'Initial registration payment',
-                    'receipt_number' => 'RCP-' . str_pad($student->id, 6, '0', STR_PAD_LEFT),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Student created successfully',
-                'data' => $student
-            ], 201);
-        } catch (\Exception $e) {
-            Log::error('Failed to create student: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create student: ' . $e->getMessage()
-            ], 500);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student created successfully',
+            'data' => $student
+        ], 201);
+    } catch (\Exception $e) {
+        Log::error('Failed to create student: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create student: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     public function show($id)
     {

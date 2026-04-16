@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\MultiTenantTrait;
 
 class Instructor extends Model
 {
-    use HasFactory;
+    use HasFactory,MultiTenantTrait;
 
     protected $fillable = [
+        'user_id',
         'first_name',
         'last_name',
         'email',

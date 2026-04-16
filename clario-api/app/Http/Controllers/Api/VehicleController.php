@@ -41,48 +41,62 @@ class VehicleController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'brand' => 'required|string|max:255',
-                'model' => 'required|string|max:255',
-                'year' => 'required|integer|min:1990|max:' . (date('Y') + 1),
-                'plate' => 'required|string|unique:vehicles',
-                'vin' => 'nullable|string|unique:vehicles',
-                'category' => 'required|string|in:B,A,A1,C,D,BE',
-                'fuel' => 'required|string|in:Gasoline,Diesel,Electric,Hybrid,LPG',
-                'transmission' => 'required|string|in:Manual,Automatic',
-                'color' => 'nullable|string',
-                'status' => 'required|in:Active,Maintenance,Inactive,Out of Service',
-                'mileage' => 'nullable|integer|min:0',
-                'last_maintenance' => 'nullable|date',
-                'next_maintenance' => 'nullable|date|after:last_maintenance',
-                'insurance_expiry' => 'nullable|date',
-                'insurance_provider' => 'nullable|string|max:255',
-                'insurance_policy' => 'nullable|string|max:255',
-                'technical_inspection' => 'nullable|date',
-                'registration_expiry' => 'nullable|date',
-                'assigned_instructor' => 'nullable|string|max:255',
-                'purchase_price' => 'nullable|numeric|min:0',
-                'current_value' => 'nullable|numeric|min:0',
-                'fuel_efficiency' => 'nullable|numeric|min:0',
-                'notes' => 'nullable|string',
-            ]);
+{
+    try {
+        $validated = $request->validate([
+            'brand' => 'required|string|max:255',
+            'model' => 'required|string|max:255',
+            'year' => 'required|integer|min:1990|max:' . (date('Y') + 1),
+            'plate' => 'required|string|unique:vehicles',
+            'vin' => 'nullable|string|unique:vehicles',
+            'category' => 'required|string|in:B,A,A1,C,D,BE',
+            'fuel' => 'required|string|in:Gasoline,Diesel,Electric,Hybrid,LPG',
+            'transmission' => 'required|string|in:Manual,Automatic',
+            'color' => 'nullable|string',
+            'status' => 'required|in:Active,Maintenance,Inactive,Out of Service',
+            'mileage' => 'nullable|integer|min:0',
+            'last_maintenance' => 'nullable|date',
+            // ✅ Fix: Only validate next_maintenance after last_maintenance if both are provided
+            'next_maintenance' => 'nullable|date|after_or_equal:today',
+            'insurance_expiry' => 'nullable|date',
+            'insurance_provider' => 'nullable|string|max:255',
+            'insurance_policy' => 'nullable|string|max:255',
+            'technical_inspection' => 'nullable|date',
+            'registration_expiry' => 'nullable|date',
+            'assigned_instructor' => 'nullable|string|max:255',
+            'purchase_price' => 'nullable|numeric|min:0',
+            'current_value' => 'nullable|numeric|min:0',
+            'fuel_efficiency' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
 
-            $vehicle = Vehicle::create($validated);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Vehicle created successfully',
-                'data' => $vehicle
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create vehicle: ' . $e->getMessage()
-            ], 500);
+        // Add custom validation: if both exist, next_maintenance must be after last_maintenance
+        if (!empty($validated['last_maintenance']) && !empty($validated['next_maintenance'])) {
+            if (strtotime($validated['next_maintenance']) <= strtotime($validated['last_maintenance'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'The next maintenance date must be after the last maintenance date.'
+                ], 422);
+            }
         }
+
+        // Add user_id automatically
+        $validated['user_id'] = $request->user()->id;
+
+        $vehicle = Vehicle::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Vehicle created successfully',
+            'data' => $vehicle
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create vehicle: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Display the specified resource.
@@ -184,6 +198,14 @@ public function addMaintenance(Request $request, $id)
     try {
         $vehicle = Vehicle::findOrFail($id);
 
+        // Verify vehicle belongs to user
+        if ($vehicle->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
         $validated = $request->validate([
             'date' => 'required|date',
             'type' => 'required|string',
@@ -212,8 +234,6 @@ public function addMaintenance(Request $request, $id)
         $vehicle->next_maintenance = $nextMaintenanceDate;
 
         // Always set vehicle to Maintenance status when a maintenance record is added.
-        // Use the completeMaintenance endpoint to return the vehicle to Active status.
-        // Optionally controlled by the frontend's set_maintenance_status flag.
         if ($request->input('set_maintenance_status', true)) {
             $vehicle->status = 'Maintenance';
         }
@@ -229,6 +249,7 @@ public function addMaintenance(Request $request, $id)
         if (($validated['cost'] ?? 0) > 0) {
             $paymentData = [
                 'reference' => $this->generateUniquePaymentReference(),
+                'user_id' => $request->user()->id, // Add user_id to payment
                 'vehicle_id' => $vehicle->id,
                 'student_name' => 'MAINTENANCE',
                 'student_cin' => 'SYS-MAINT',
@@ -347,91 +368,100 @@ private function calculateNextMaintenanceDate($currentDate, $maintenanceType)
     }
 
    public function addIncident(Request $request, $id)
-    {
-        DB::beginTransaction();
+{
+    DB::beginTransaction();
 
-        try {
-            $vehicle = Vehicle::findOrFail($id);
+    try {
+        $vehicle = Vehicle::findOrFail($id);
 
-            $validated = $request->validate([
-                'date' => 'required|date',
-                'type' => 'required|string',
-                'description' => 'required|string',
-                'cost' => 'nullable|numeric|min:0',
-                'reported_by' => 'nullable|string',
-                'resolved' => 'boolean',
-            ]);
-
-            $incidents = $vehicle->incidents ?? [];
-            $newIncident = [
-                'id' => time(),
-                'date' => $validated['date'],
-                'type' => $validated['type'],
-                'description' => $validated['description'],
-                'cost' => $validated['cost'] ?? 0,
-                'reported_by' => $validated['reported_by'] ?? 'System',
-                'resolved' => $validated['resolved'] ?? false,
-            ];
-
-            $incidents[] = $newIncident;
-            $vehicle->incidents = $incidents;
-
-            // Set vehicle status to Inactive for certain incident types
-            $incidentTypesThatRequireInactive = ['Accident', 'Damage', 'Theft'];
-
-            if (in_array($validated['type'], $incidentTypesThatRequireInactive)) {
-                $vehicle->status = 'Inactive';
-            } else {
-                $vehicle->status = 'Maintenance';
-            }
-
-            $vehicle->save();
-
-            // Create payment record if cost > 0
-            if (($validated['cost'] ?? 0) > 0) {
-                $paymentData = [
-                    'reference' => $this->generateUniquePaymentReference(),
-                    'vehicle_id' => $vehicle->id,
-                    'student_name' => 'INCIDENT',
-                    'student_cin' => 'SYS-INCID',
-                    'category' => $vehicle->category,
-                    'payment_category' => 'vehicle_incident',
-                    'amount_total' => $validated['cost'],
-                    'amount_paid' => $validated['cost'],
-                    'amount_remaining' => 0,
-                    'status' => 'Paid',
-                    'method' => 'Cash',
-                    'type' => 'Incident',
-                    'date' => $validated['date'],
-                    'due_date' => $validated['date'],
-                    'instructor' => $vehicle->assigned_instructor ?? 'System',
-                    'notes' => 'Incident: ' . $validated['type'] . ' - ' . $validated['description'],
-                    'receipt_number' => 'INCID-' . str_pad($vehicle->id, 6, '0', STR_PAD_LEFT),
-                    'payment_reference' => 'INCID-' . $vehicle->id . '-' . time(),
-                ];
-                Payment::create($paymentData);
-            }
-
-            DB::commit();
-
-            $updatedVehicle = Vehicle::find($vehicle->id);
-            $updatedVehicle->incidents = array_values($updatedVehicle->incidents ?? []);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Incident reported successfully. Vehicle status: ' . $vehicle->status,
-                'data' => $updatedVehicle,
-                'payment_created' => ($validated['cost'] ?? 0) > 0
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
+        // Verify vehicle belongs to user
+        if ($vehicle->user_id !== $request->user()->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to report incident: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Unauthorized'
+            ], 403);
         }
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+            'type' => 'required|string',
+            'description' => 'required|string',
+            'cost' => 'nullable|numeric|min:0',
+            'reported_by' => 'nullable|string',
+            'resolved' => 'boolean',
+        ]);
+
+        $incidents = $vehicle->incidents ?? [];
+        $newIncident = [
+            'id' => time(),
+            'date' => $validated['date'],
+            'type' => $validated['type'],
+            'description' => $validated['description'],
+            'cost' => $validated['cost'] ?? 0,
+            'reported_by' => $validated['reported_by'] ?? 'System',
+            'resolved' => $validated['resolved'] ?? false,
+        ];
+
+        $incidents[] = $newIncident;
+        $vehicle->incidents = $incidents;
+
+        // Set vehicle status to Inactive for certain incident types
+        $incidentTypesThatRequireInactive = ['Accident', 'Damage', 'Theft'];
+
+        if (in_array($validated['type'], $incidentTypesThatRequireInactive)) {
+            $vehicle->status = 'Inactive';
+        } else {
+            $vehicle->status = 'Maintenance';
+        }
+
+        $vehicle->save();
+
+        // Create payment record if cost > 0
+        if (($validated['cost'] ?? 0) > 0) {
+            $paymentData = [
+                'reference' => $this->generateUniquePaymentReference(),
+                'user_id' => $request->user()->id, // Add user_id to payment
+                'vehicle_id' => $vehicle->id,
+                'student_name' => 'INCIDENT',
+                'student_cin' => 'SYS-INCID',
+                'category' => $vehicle->category,
+                'payment_category' => 'vehicle_incident',
+                'amount_total' => $validated['cost'],
+                'amount_paid' => $validated['cost'],
+                'amount_remaining' => 0,
+                'status' => 'Paid',
+                'method' => 'Cash',
+                'type' => 'Incident',
+                'date' => $validated['date'],
+                'due_date' => $validated['date'],
+                'instructor' => $vehicle->assigned_instructor ?? 'System',
+                'notes' => 'Incident: ' . $validated['type'] . ' - ' . $validated['description'],
+                'receipt_number' => 'INCID-' . str_pad($vehicle->id, 6, '0', STR_PAD_LEFT),
+                'payment_reference' => 'INCID-' . $vehicle->id . '-' . time(),
+            ];
+            Payment::create($paymentData);
+        }
+
+        DB::commit();
+
+        $updatedVehicle = Vehicle::find($vehicle->id);
+        $updatedVehicle->incidents = array_values($updatedVehicle->incidents ?? []);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Incident reported successfully. Vehicle status: ' . $vehicle->status,
+            'data' => $updatedVehicle,
+            'payment_created' => ($validated['cost'] ?? 0) > 0
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to report incident: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
  * Resolve an incident and set vehicle back to Active

@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Student extends Model
 {
-    use HasFactory;
+    use HasFactory,MultiTenantTrait;
 
     protected $table = 'students';
 
     protected $fillable = [
+        'user_id',
         'first_name',
         'last_name',
         'cin',

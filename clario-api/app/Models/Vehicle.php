@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\MultiTenantTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Vehicle extends Model
 {
-    use HasFactory;
+    use HasFactory,MultiTenantTrait;
 
     protected $fillable = [
+        'user_id',
         'brand',
         'model',
         'year',
@@ -40,6 +42,7 @@ class Vehicle extends Model
     ];
 
     protected $casts = [
+
         'year' => 'integer',
         'mileage' => 'integer',
         'sessions_count' => 'integer',

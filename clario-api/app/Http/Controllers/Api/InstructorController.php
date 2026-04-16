@@ -38,51 +38,54 @@ class InstructorController extends Controller
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'first_name' => 'required|string|max:255',
-                'last_name' => 'required|string|max:255',
-                'email' => 'required|email|unique:instructors',
-                'phone' => 'nullable|string|max:20',
-                'address' => 'nullable|string',
-                'cin' => 'required|string|unique:instructors',
-                'type' => 'required|in:Code,Driving,Both,Simulator,Evaluation',
-                'status' => 'required|in:Active,On Leave,Inactive,Training',
-                'experience_level' => 'required|in:Junior,Intermediate,Senior,Master',
-                'years_experience' => 'nullable|integer|min:0',
-                'hire_date' => 'nullable|date',
-                'specialization' => 'nullable|string|max:255',
-                'license_number' => 'nullable|string|max:255',
-                'available_days' => 'nullable|array',
-                'available_hours' => 'nullable|array',
-                'notes' => 'nullable|string',
-            ]);
+{
+    try {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:instructors',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'cin' => 'required|string|unique:instructors',
+            'type' => 'required|in:Code,Driving,Both,Simulator,Evaluation',
+            'status' => 'required|in:Active,On Leave,Inactive,Training',
+            'experience_level' => 'required|in:Junior,Intermediate,Senior,Master',
+            'years_experience' => 'nullable|integer|min:0',
+            'hire_date' => 'nullable|date',
+            'specialization' => 'nullable|string|max:255',
+            'license_number' => 'nullable|string|max:255',
+            'available_days' => 'nullable|array',
+            'available_hours' => 'nullable|array',
+            'notes' => 'nullable|string',
+        ]);
 
-            // Set default values for stats
-            $validated['students_count'] = 0;
-            $validated['sessions_count'] = 0;
-            $validated['completion_rate'] = 0;
-            $validated['rating'] = 0;
-            $validated['revenue'] = 0;
-            $validated['certifications'] = [];
-            $validated['schedule'] = [];
-            $validated['documents'] = [];
+        // Add user_id automatically
+        $validated['user_id'] = $request->user()->id;
 
-            $instructor = Instructor::create($validated);
+        // Set default values for stats
+        $validated['students_count'] = 0;
+        $validated['sessions_count'] = 0;
+        $validated['completion_rate'] = 0;
+        $validated['rating'] = 0;
+        $validated['revenue'] = 0;
+        $validated['certifications'] = [];
+        $validated['schedule'] = [];
+        $validated['documents'] = [];
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Instructor created successfully',
-                'data' => $instructor
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create instructor: ' . $e->getMessage()
-            ], 500);
-        }
+        $instructor = Instructor::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Instructor created successfully',
+            'data' => $instructor
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create instructor: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Display the specified resource.

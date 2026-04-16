@@ -27,4 +27,16 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+    // Add these relationships
+public function subscription()
+{
+    return $this->hasOne(Subscription::class)->latest();
+}
+
+public function hasActiveSubscription()
+{
+    return $this->subscription &&
+           $this->subscription->stripe_status === 'active' &&
+           (!$this->subscription->ends_at || $this->subscription->ends_at > now());
+}
 }
