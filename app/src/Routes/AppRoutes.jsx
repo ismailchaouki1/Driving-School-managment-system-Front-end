@@ -18,6 +18,7 @@ import { NotificationProvider } from '../contexts/NotificationContext';
 import Instructors from '../Pages/System/Instructors';
 import ForgotPassword from '../Pages/auth/ForgotPassword';
 import ResetPassword from '../Pages/auth/ResetPassword';
+import Checkout from '../components/Checkout';
 export default function AppRoutes() {
   return (
     <BrowserRouter>
@@ -32,6 +33,7 @@ export default function AppRoutes() {
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/checkout" element={<Checkout />} />
           <Route path="/system" element={<MainLayout />}>
             <Route index element={<Navigate to="/system/dashboard" />} />
             <Route path="dashboard" element={<Dashboard />} />
