@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Route;
 // Public routes
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/login-after-payment', [AuthController::class, 'loginAfterPayment']); // ✅ Add this
+
 
 Route::post('/password/email', [PasswordResetController::class, 'sendResetLink']);
 Route::post('/password/reset', [PasswordResetController::class, 'resetPassword']);

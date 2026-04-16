@@ -15,7 +15,9 @@ class StripeController extends Controller
         Stripe::setApiKey(env('STRIPE_SECRET'));
     }
 
-    public function createCheckoutSession(Request $request)
+    // app/Http/Controllers/Api/StripeController.php
+
+public function createCheckoutSession(Request $request)
 {
     Log::info('=== STRIPE CHECKOUT SESSION STARTED ===');
 
@@ -44,6 +46,12 @@ class StripeController extends Controller
         $interval = $request->billing === 'yearly' ? 'year' : 'month';
         $planName = ucfirst($request->plan);
 
+        // ✅ Add user email and ID to success URL
+        $successUrl = env('STRIPE_SUCCESS_URL', 'http://localhost:5173/payment-success')
+            . '?session_id={CHECKOUT_SESSION_ID}'
+            . '&user_id=' . $user->id
+            . '&email=' . urlencode($user->email);
+
         $checkoutSession = Session::create([
             'payment_method_types' => ['card'],
             'customer_email' => $user->email,
@@ -63,10 +71,11 @@ class StripeController extends Controller
                 'quantity' => 1,
             ]],
             'mode' => 'subscription',
-            'success_url' => env('STRIPE_SUCCESS_URL', 'http://localhost:5173/system/dashboard') . '?session_id={CHECKOUT_SESSION_ID}',
+            'success_url' => $successUrl,
             'cancel_url' => env('STRIPE_CANCEL_URL', 'http://localhost:5173/pricing'),
             'metadata' => [
                 'user_id' => $user->id,
+                'user_email' => $user->email,
                 'plan' => $request->plan,
                 'billing' => $request->billing
             ]
@@ -75,12 +84,11 @@ class StripeController extends Controller
         return response()->json([
             'success' => true,
             'session_id' => $checkoutSession->id,
-            'session_url' => $checkoutSession->url,  // ✅ Add this line
+            'session_url' => $checkoutSession->url,
         ]);
 
     } catch (\Exception $e) {
         Log::error('Stripe Error: ' . $e->getMessage());
-
         return response()->json([
             'success' => false,
             'message' => $e->getMessage()

@@ -14,38 +14,84 @@ class AuthController extends Controller
     /**
      * User Sign Up / Registration
      */
-    public function signup(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => 'user',
-        ]);
+    // app/Http/Controllers/Api/AuthController.php
 
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+public function signup(Request $request)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users',
+        'password' => 'required|string|min:6|confirmed',
+    ]);
 
+    $user = User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'password' => Hash::make($request->password),
+        'role' => 'user',
+    ]);
+
+    // ✅ Create token for the user immediately
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'success' => true,
+        'message' => 'User registered successfully. Please complete payment.',
+        'data' => [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'token' => $token, // ✅ Return token
+            'requires_subscription' => true, // ✅ Flag to indicate payment needed
+        ]
+    ], 201);
+}
+
+// Add a new method to login after payment
+public function loginAfterPayment(Request $request)
+{
+    $request->validate([
+        'email' => 'required|string|email',
+    ]);
+
+    $user = User::where('email', $request->email)->first();
+
+    if (!$user) {
         return response()->json([
-            'success' => true,
-            'message' => 'User registered successfully',
-            'data' => [
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                ],
-                'token' => $token,
-            ]
-        ], 201);
+            'success' => false,
+            'message' => 'User not found'
+        ], 404);
     }
+
+    // Check if user has an active subscription
+    if (!$user->hasActiveSubscription()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'No active subscription found. Please subscribe first.'
+        ], 403);
+    }
+
+    // Create token for the user
+    $token = $user->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Login successful after payment',
+        'data' => [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'token' => $token,
+        ]
+    ]);
+}
 
     /**
      * User Login
