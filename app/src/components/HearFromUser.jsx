@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import Video from './video';
 import { gsap } from 'gsap';
 import { Link } from 'react-router-dom';
-
+import vid from '../assets/client.mp4';
+const videoSrc = vid;
 export default function HearFromUser() {
   const [open, setOpen] = useState(false);
   const container = useRef(null);
@@ -52,7 +53,7 @@ export default function HearFromUser() {
           </div>
         </div>
       </div>
-      <Video opened={open} onClose={() => setOpen(false)} />
+      <Video opened={open} src={videoSrc} onClose={() => setOpen(false)} />
       <div className="user-review" ref={container2}>
         <div className="user-badge">
           <span className="heart">❤︎</span> ⁠ Hear from our users

@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import '../Styles/video.scss';
-import vid from '../assets/images/video.mp4';
-const videoSrc = vid; // ✅ correct path
 
-export default function Video({ opened, onClose }) {
+export default function Video({ opened, onClose, src }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -23,7 +21,7 @@ export default function Video({ opened, onClose }) {
       }
     };
 
-    video.muted = true; // required for autoplay
+    video.muted = false;
     playVideo();
 
     const handleEsc = (e) => {
@@ -48,7 +46,7 @@ export default function Video({ opened, onClose }) {
       <div className="video-modal" onClick={(e) => e.stopPropagation()}>
         <video
           ref={videoRef}
-          src={videoSrc}
+          src={src}
           preload="auto"
           controls
           style={{

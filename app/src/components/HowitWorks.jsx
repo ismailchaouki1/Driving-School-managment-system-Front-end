@@ -11,6 +11,9 @@ import { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Video from './video';
+
+import vid from '../assets/images/video.mp4';
+const videoSrc = vid;
 gsap.registerPlugin(ScrollTrigger);
 export default function HowItWorks() {
   const container = useRef(null);
@@ -112,7 +115,7 @@ export default function HowItWorks() {
       <h1 className="how-title" ref={title}>
         How Clario works
       </h1>
-      <Video opened={open} onClose={() => setOpen(false)} />
+      <Video opened={open} src={videoSrc} onClose={() => setOpen(false)} />
       <div className="steps ">
         {steps.map((s) => (
           <div class="card" key={s.id} ref={s.ref}>

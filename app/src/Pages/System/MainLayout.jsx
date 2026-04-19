@@ -598,13 +598,6 @@ const MainLayout = () => {
                   )}
                 </div>
                 <div className="avatar-actions">
-                  <button
-                    className="upload-avatar-btn"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera size={16} />
-                    Change Photo
-                  </button>
                   <input
                     type="file"
                     ref={fileInputRef}
